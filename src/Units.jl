@@ -27,7 +27,10 @@ Dimension = Union(Length,
                   Time,
                   )
 
-ConcreteUnit = Union([subtypes(D) for D in Dimension])
+ConcreteUnit = begin
+    type_arr = vcat([subtypes(D) for D in Dimension.types]...)
+    Union(type_arr...)
+end
 
 
 type Quantity
@@ -38,7 +41,7 @@ type Quantity
 
     function Quantity{T<:Unit}(mag::Number, unit::Type{T},
                                ord::Number, dim::Dimension)
-        if Type{unit} <: Dimension
+        if unit in Dimension
             error(UnitError(), ": Must be a concrete unit.")
         end
         if ord == 0
