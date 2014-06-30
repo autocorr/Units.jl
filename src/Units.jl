@@ -1,4 +1,7 @@
 module Units
+# TODO
+# * typealiases for abbreviations of concrete types
+# * Macro to make typealias for SI prefixes
 
 import Base: +, -, *, /, convert, reduce, promote, promote_rule
 
@@ -7,7 +10,7 @@ type UnitError <: Exception end
 
 
 abstract Unit
-abstract Unitless <: Unit
+abstract Unitless
 
 abstract Length <: Unit
 abstract Meter <: Length
@@ -22,39 +25,46 @@ abstract Time <: Unit
 abstract Second <: Time
 abstract Year <: Time
 
-Dimension = Union(Length,
-                  Mass,
-                  Time,
-                  )
+abstract Energy <: Unit
+abstract ElectricCharge <: Unit
+abstract ElectricResistance <: Unit
+
+
+BaseUnit = begin
+    tl = [Type{T} for T in subtypes(Unit)]
+    Union(tl...)
+end
 
 ConcreteUnit = begin
-    type_arr = vcat([subtypes(D) for D in Dimension.types]...)
-    Union(type_arr...)
+    tl = vcat([subtypes(D) for D in subtypes(Unit)]...)
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+SiUnit = begin
+    tl = [Meter, Gram, Second]
+    tl = [Type{T} for T in tl]
+    Union(tl...)
 end
 
 
-type Quantity
+immutable Quantity
     mag::Number
-    unit
+    unit::ConcreteUnit
     ord::Number
-    dim::Dimension
+    base::BaseUnit
 
-    function Quantity{T<:Unit}(mag::Number, unit::Type{T},
-                               ord::Number, dim::Dimension)
-        if unit in Dimension
-            error(UnitError(), ": Must be a concrete unit.")
-        end
+    function Quantity(mag::Number, unit::ConcreteUnit, ord::Number)
         if ord == 0
             unit = Unitless
-            dim = Unitless
+            base = Unitless
         else
-            dim = super(unit)
+            base = super(unit)
         end
-        new(mag, unit, ord, dim)
+        new(mag, unit, ord, base)
     end
 end
-Quantity(mag, unit) = Quantity(mag, unit, 1, super(unit))
-Quantity(mag, unit, ord) = Quantity(mag, unit, ord, super(unit))
+Quantity(mag, unit) = Quantity(mag, unit, 1)
 
 
 type Composite
@@ -69,20 +79,28 @@ type Composite
 end
 
 
-# Converts unit `x` to unit `y` for units of compatible type.
-function convert(y::Quantity, x::Quantity)
-    if super(x.unit) != super(y.unit)
-        error(UnitError(), ": Units must be of compatible type.")
+# Checks if unit quantities are compatible for conversion
+function assert_compatible(x::Quantity, y::Quantity)
+    if x.base != y.base
+        error(UnitError(), " $(x.base) != $(y.base) : Units must be compatible.")
     elseif x.ord != y.ord
-        error(UnitError(), ": Units must be of the same order.")
-    else
-        return Quantity(x.mag * ud[x.unit] / ud[y.unit], y.unit, x.ord)
+        error(UnitError(), " $(x.ord) != $(y.ord) : Units must be same order.")
     end
 end
 
-function convert{T<:Unit}(y::Type{T}, x::Quantity)
+# Converts unit `x` to unit `y` for units of compatible type.
+function convert(y::ConcreteUnit, x::Quantity)
+    assert_compatible(x, Quantity(1, y))
     Quantity(ud[x.unit] / ud[y], y, x.ord)
 end
+function convert(y::Quantity, x::Quantity)
+    assert_compatible(x, y)
+    Quantity(x.mag * ud[x.unit] / ud[y.unit], y.unit, x.ord)
+end
+# TODO
+# function convert(y::Composite, x::Composite) = nothing
+# function convert(y::Quantity, x::Composite) = nothing
+# function convert(y::ConcreteUnit, x::Composite) = nothing
 
 
 # Reduce a composite quantity to the lowest dimensions
@@ -107,8 +125,8 @@ end
 function *(x::Quantity, y::Quantity)
     Quantity(x.mag * y.mag * convert(x, y).mag, x.unit, x.ord + x.ord)
 end
-#*{T<:Unit}(x::T, y::Number) = Quantity(y, x)
-#*{T<:Unit}(x::Number, y::T) = y * x
+*(x::ConcreteUnit, y::Number) = Quantity(y, x)
+*(x::Number, y::ConcreteUnit) = y * x
 
 # Binary division operator.
 /(x::Number, y::Quantity) = Quantity(x / y.mag, y.unit, -1 * y.ord)
@@ -118,8 +136,10 @@ function /(x::Quantity, y::Quantity)
 end
 
 # Binary exponentiation operator.
-#^{T<:Unit}(x::T, y::Number) = Quantity(1, x, y)
-#^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord + y)
+^(x::ConcreteUnit, y::Number) = Quantity(1, x, y)
+# Add integer to avoid method ambiguity with ^(::Any, ::Integer)
+^(x::Quantity, y::Integer) = Quantity(x.mag^y, x.unit, x.ord * y)
+^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord * y)
 
 
 ud = [
@@ -135,5 +155,27 @@ ud = [
     Second => 1,
     Year => 2.0,
 ]
+
+# Prefixes
+const Yocto = 1e-24
+const Zepto = 1e-21
+const Atto = 1e-18
+const Femto = 1e-15
+const Pico = 1e-12
+const Nano = 1e-9
+const Micro = 1e-6
+const Milli = 1e-3
+const Centi = 1e-2
+const Deca = 1e1
+const Hecto = 1e2
+const Kilo = 1e3
+const Mega = 1e6
+const Giga = 1e9
+const Tera = 1e12
+const Peta = 1e15
+const Exa = 1e18
+const Zetta = 1e21
+const Yotta = 1e24
+
 
 end  # module Units
