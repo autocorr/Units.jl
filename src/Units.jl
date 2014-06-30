@@ -2,6 +2,9 @@ module Units
 # TODO
 # * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
+# * Composite quantities
+# * Convert function for composite
+# * Reduce function
 
 import Base: +, -, *, /, convert, reduce, promote, promote_rule
 
