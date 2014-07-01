@@ -7,6 +7,7 @@ println("----------------")
 
 for t in tests
     fp = joinpath("$(t).jl")
-    println("* running $(fp) ...")
+    print("* running $(fp) ")
     include(fp)
+    println('\n')
 end
