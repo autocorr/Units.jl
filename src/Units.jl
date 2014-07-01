@@ -9,7 +9,13 @@ module Units
 import Base: +, -, *, /, convert, reduce, promote, promote_rule
 
 
-type UnitError <: Exception end
+type UnitError <: Exception
+    msg::String
+
+    function UnitError(msg::String="")
+        new(msg)
+    end
+end
 
 
 abstract Unit
@@ -90,9 +96,9 @@ end
 # Checks if unit quantities are compatible for conversion
 function assert_compatible(x::Quantity, y::Quantity)
     if x.base != y.base
-        error(UnitError(), " $(x.base) != $(y.base) : Units must be compatible.")
+        throw(UnitError("$(x.base) != $(y.base) : Units must be compatible."))
     elseif x.ord != y.ord
-        error(UnitError(), " $(x.ord) != $(y.ord) : Units must be same order.")
+        throw(UnitError("$(x.ord) != $(y.ord) : Units must be same order."))
     end
 end
 
@@ -128,19 +134,36 @@ end
 -(x::Quantity, y::Quantity) = x + (-1 * y)
 
 # Binary multiplication operator.
+*(x::ConcreteUnit, y::Number) = Quantity(y, x)
+*(x::Number, y::ConcreteUnit) = y * x
 *(x::Number, y::Quantity) = Quantity(x * y.mag, y.unit, y.ord)
 *(x::Quantity, y::Number) = Quantity(x.mag * y, x.unit, x.ord)
 function *(x::Quantity, y::Quantity)
-    Quantity(x.mag * y.mag * convert(x, y).mag, x.unit, x.ord + x.ord)
+    if x.base == y.base
+        Quantity(x.mag * y.mag * convert(x, y).mag, x.unit, x.ord + x.ord)
+    else
+        Composite([x, y])
+    end
 end
-*(x::ConcreteUnit, y::Number) = Quantity(y, x)
-*(x::Number, y::ConcreteUnit) = y * x
+function *(x::Quantity, y::Composite)
+    append!(y.quants, [x])
+end
+*(x::Composite, y::Quantity) = y * x
+# TODO handle operations with promote_rule ?
+#*(x::Composite, y::ConcreteUnit) =
+#*(x::Composite, y::Number) =
 
 # Binary division operator.
+/(x::ConcreteUnit, y::Number) = Quantity(1 / y, x)
+/(x::Number, y::ConcreteUnit) = Quantity(x, y, -1)
 /(x::Number, y::Quantity) = Quantity(x / y.mag, y.unit, -1 * y.ord)
 /(x::Quantity, y::Number) = x * (1 / y)
 function /(x::Quantity, y::Quantity)
-    Quantity(x.mag / y.mag * convert(x, y).mag, x.unit, x.ord - y.ord)
+    if x.base == y.base
+        Quantity(x.mag / y.mag * convert(x, y).mag, x.unit, x.ord - y.ord)
+    else
+        Composite([x, 1 / y])
+    end
 end
 
 # Binary exponentiation operator.
@@ -148,6 +171,8 @@ end
 # Add integer to avoid method ambiguity with ^(::Any, ::Integer)
 ^(x::Quantity, y::Integer) = Quantity(x.mag^y, x.unit, x.ord * y)
 ^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord * y)
+#^(x::Composite, y::Integer) =
+#^(x::Composite, y::Number) =
 
 
 global _ud = [
