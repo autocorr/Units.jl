@@ -19,14 +19,19 @@ abstract Length <: Unit
 abstract Meter <: Length
 abstract AU <: Length
 abstract Parsec <: Length
+typealias m Meter
+typealias pc Parsec
 
 abstract Mass <: Unit
 abstract Gram <: Mass
 abstract SolarMass <: Mass
+typealias msol SolarMass
 
 abstract Time <: Unit
 abstract Second <: Time
 abstract Year <: Time
+typealias s Second
+typealias yr Year
 
 abstract Energy <: Unit
 abstract ElectricCharge <: Unit
@@ -159,26 +164,63 @@ ud = [
     Year => 2.0,
 ]
 
-# Prefixes
-const Yocto = 1e-24
-const Zepto = 1e-21
-const Atto = 1e-18
-const Femto = 1e-15
-const Pico = 1e-12
-const Nano = 1e-9
-const Micro = 1e-6
-const Milli = 1e-3
-const Centi = 1e-2
-const Deca = 1e1
-const Hecto = 1e2
-const Kilo = 1e3
-const Mega = 1e6
-const Giga = 1e9
-const Tera = 1e12
-const Peta = 1e15
-const Exa = 1e18
-const Zetta = 1e21
-const Yotta = 1e24
+abstract Prefix
+abstract Yocto <: Prefix
+abstract Zepto <: Prefix
+abstract Atto <: Prefix
+abstract Femto <: Prefix
+abstract Pico <: Prefix
+abstract Nano <: Prefix
+abstract Micro <: Prefix
+abstract Milli <: Prefix
+abstract Centi <: Prefix
+abstract Deca <: Prefix
+abstract Hecto <: Prefix
+abstract Kilo <: Prefix
+abstract Mega <: Prefix
+abstract Giga <: Prefix
+abstract Tera <: Prefix
+abstract Peta <: Prefix
+abstract Exa <: Prefix
+abstract Zetta <: Prefix
+abstract Yotta <: Prefix
+
+const yocto = 1e-24
+const zepto = 1e-21
+const atto = 1e-18
+const femto = 1e-15
+const pico = 1e-12
+const nano = 1e-9
+const micro = 1e-6
+const milli = 1e-3
+const centi = 1e-2
+const deca = 1e1
+const hecto = 1e2
+const kilo = 1e3
+const mega = 1e6
+const giga = 1e9
+const tera = 1e12
+const peta = 1e15
+const exa = 1e18
+const zetta = 1e21
+const yotta = 1e24
+
+
+macro add_prefix(prefix, base)
+    pbase = symbol(string(prefix, base))
+    pcons = symbol(lowercase(string(prefix)))
+    return quote
+        abstract $pbase <: super($base)
+        $ud[$pbase] = $pcons * $ud[$base]
+    end
+end
+@add_prefix(Atto, Meter)
+
+# Append prefixes to all concrete units
+for prefix=subtypes(Prefix), base=ConcreteUnit.types
+    base = base.parameters[1]
+    @add_prefix(prefix, base.parameters[1])
+end
 
 
 end  # module Units
