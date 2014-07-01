@@ -220,7 +220,7 @@ end
 # TODO doesn't work because of declaring a type inside a local scope
 for prefix=subtypes(Prefix), base=ConcreteUnit.types
     base = base.parameters[1]
-    @add_prefix(prefix, base.parameters[1])
+    @add_prefix(prefix, base)
 end
 
 
