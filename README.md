@@ -1,11 +1,13 @@
 Units.jl
 ========
-Manipulate units and physical quantities in Julia. Future functionality aims to include `mks` and `cgs` units, constants, and dimensional analysis.
+Manipulate units and physical quantities in Julia. Future functionality aims to
+include `mks` and `cgs` units, constants, and dimensional analysis.
 
 
 Installing
 ----------
-As this package is in an immature state, it is not currently available in the Julia package archive. To install and try it:
+As this package is still in a state of active development, it is not currently
+available in the Julia package archive. To install and try it:
 
 ```julia
 julia> Pkg.update()
@@ -17,10 +19,12 @@ Usage
 
 ```julia
 julia> import Units; u = Units;
-julia> x = u.Quantity(2, u.Meter)
+julia> q = u.Quantity(2, u.Meter)
 Quantity(2,Meter,1,Length)
-julia> 2x^2
-Quantity(16.0,Meter,2,Length)
+julia> 2 * u.Meter
+Quantity(2,Meter,1,Length)
+julia> 2q^2
+Quantity(8,Meter,2,Length)
 ```
 
 Info

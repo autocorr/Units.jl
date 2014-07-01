@@ -99,11 +99,11 @@ end
 # Converts unit `x` to unit `y` for units of compatible type.
 function convert(y::ConcreteUnit, x::Quantity)
     assert_compatible(x, Quantity(1, y))
-    Quantity(ud[x.unit] / ud[y], y, x.ord)
+    Quantity(_ud[x.unit] / _ud[y], y, x.ord)
 end
 function convert(y::Quantity, x::Quantity)
     assert_compatible(x, y)
-    Quantity(x.mag * ud[x.unit] / ud[y.unit], y.unit, x.ord)
+    Quantity(x.mag * _ud[x.unit] / _ud[y.unit], y.unit, x.ord)
 end
 # TODO
 # function convert(y::Composite, x::Composite) = nothing
@@ -150,7 +150,7 @@ end
 ^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord * y)
 
 
-ud = [
+global _ud = [
     Unitless => 1.0,
     # Length
     Meter => 1,
@@ -211,7 +211,7 @@ macro add_prefix(prefix, base)
     pcons = symbol(lowercase(string(prefix)))
     return quote
         abstract $pbase <: super($base)
-        $ud[$pbase] = $pcons * $ud[$base]
+        $_ud[$pbase] = $pcons * $_ud[$base]
     end
 end
 @add_prefix(Kilo, Meter)
