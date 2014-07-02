@@ -1,3 +1,4 @@
+
 Units.jl
 ========
 Manipulate units and physical quantities in Julia. Future functionality aims to
@@ -34,5 +35,6 @@ Author  | Brian Svoboda
 :-------|:--------------------------------------|
 Email   | svobodb@email.arizona.edu             |
 Source  | https://github.com/autocorr/Units.jl  |
-Docs    | https://unitsjl.readthedocs/en/latest |
+Docs    | https://unitsjl.readthedocs.org       |
 Version | alpha                                 |
+Build   | [![Build Status](https://api.travis-ci.org/autocorr/Units.jl.svg?branch=master)](https://travis-ci.org/autocorr/Units.jl) |
