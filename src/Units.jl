@@ -1,4 +1,4 @@
-module oUnits
+module Units
 # TODO
 # * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
@@ -6,7 +6,7 @@ module oUnits
 # * Convert function for composite
 # * Reduce function
 
-import Base: +, -, *, /, ^, convert, reduce, promote, promote_rule
+import Base: +, -, *, /, ^, show, convert, reduce, promote, promote_rule
 
 
 type UnitError <: Exception
@@ -254,6 +254,53 @@ end
 #    base = base.parameters[1]
 #    @add_prefix(prefix, base)
 #end
+
+
+const sup_vals = [
+    -1 => "⁻",
+    0  => "⁰",
+    1  => "¹",
+    2  => "²",
+    3  => "³",
+    4  => "⁴",
+    5  => "⁵",
+    6  => "⁶",
+    7  => "⁷",
+    8  => "⁸",
+    9  => "⁹",
+]
+
+const sub_vals = [
+    1 => "₁",
+    2 => "₂",
+    3 => "₃",
+    4 => "₄",
+    5 => "₅",
+    6 => "₆",
+    7 => "₇",
+    8 => "₈",
+    9 => "₉",
+]
+
+function pretty_order(n::Rational)
+    num = [sup_vals[int(string(x))] for x in string(abs(n.num))]
+    if n.num < 0
+        string(sup_vals[-1], num)
+    end
+    den = [sub_vals[int(string(x))] for x in string(abs(n.den))]
+    string(num, "/", den)
+end
+
+function show(io::IO, q::Quantity)
+    print("$(q.mag) $(q.unit)^$(q.ord)")
+end
+
+function show(io::IO, c::Composite)
+    print(prod([q.mag for q in c.quants]))
+    for q in c.quants
+        print(" $(q.unit)^$(q.ord)")
+    end
+end
 
 
 end
