@@ -1,4 +1,4 @@
-module Units
+module oUnits
 # TODO
 # * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
@@ -6,7 +6,7 @@ module Units
 # * Convert function for composite
 # * Reduce function
 
-import Base: +, -, *, /, convert, reduce, promote, promote_rule
+import Base: +, -, *, /, ^, convert, reduce, promote, promote_rule
 
 
 type UnitError <: Exception
@@ -51,12 +51,6 @@ end
 
 ConcreteUnit = begin
     tl = vcat([subtypes(D) for D in subtypes(Unit)]...)
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-SiUnit = begin
-    tl = [Meter, Gram, Second]
     tl = [Type{T} for T in tl]
     Union(tl...)
 end
@@ -239,8 +233,20 @@ macro add_prefix(prefix, base)
         $_ud[$pbase] = $pcons * $_ud[$base]
     end
 end
-@add_prefix(Kilo, Meter)
+@add_prefix(Centi, Meter)
 @add_prefix(Kilo, Gram)
+
+SiUnit = begin
+    tl = [Meter, KiloGram, Second]
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+CgsUnit = begin
+    tl = [CentiMeter, Gram, Second]
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
 
 # Append prefixes to all concrete units
 # TODO doesn't work because of declaring a type inside a local scope
@@ -250,4 +256,4 @@ end
 #end
 
 
-end  # module Units
+end
