@@ -1,13 +1,17 @@
-module Units
 # TODO
 # * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
 # * Composite quantities
 # * Convert function for composite
 # * Reduce function
+module Units
 
 import Base: +, -, *, /, ^, show, convert, reduce, promote, promote_rule
 
+
+##############################################################################
+# Exceptions
+##############################################################################
 
 type UnitError <: Exception
     msg::String
@@ -18,26 +22,25 @@ type UnitError <: Exception
 end
 
 
+##############################################################################
+# Unit definitions
+##############################################################################
+
 abstract Unit
 abstract Unitless
 
 abstract Length <: Unit
-abstract Meter <: Length
-abstract AU <: Length
-abstract Parsec <: Length
-typealias m Meter
-typealias pc Parsec
+abstract Meter <: Length; typealias m Meter
+abstract AU <: Length; typealias au AU
+abstract Parsec <: Length; typealias pc Parsec
 
 abstract Mass <: Unit
 abstract Gram <: Mass
-abstract SolarMass <: Mass
-typealias msol SolarMass
+abstract SolarMass <: Mass; typealias msol SolarMass
 
 abstract Time <: Unit
-abstract Second <: Time
-abstract Year <: Time
-typealias s Second
-typealias yr Year
+abstract Second <: Time; typealias s Second
+abstract Year <: Time; typealias yr Year
 
 abstract Energy <: Unit
 abstract ElectricCharge <: Unit
@@ -55,6 +58,97 @@ ConcreteUnit = begin
     Union(tl...)
 end
 
+
+abstract Prefix
+abstract Yocto <: Prefix
+abstract Zepto <: Prefix
+abstract Atto <: Prefix
+abstract Femto <: Prefix
+abstract Pico <: Prefix
+abstract Nano <: Prefix
+abstract Micro <: Prefix
+abstract Milli <: Prefix
+abstract Centi <: Prefix
+abstract Deca <: Prefix
+abstract Hecto <: Prefix
+abstract Kilo <: Prefix
+abstract Mega <: Prefix
+abstract Giga <: Prefix
+abstract Tera <: Prefix
+abstract Peta <: Prefix
+abstract Exa <: Prefix
+abstract Zetta <: Prefix
+abstract Yotta <: Prefix
+
+const yocto = 1e-24
+const zepto = 1e-21
+const atto = 1e-18
+const femto = 1e-15
+const pico = 1e-12
+const nano = 1e-9
+const micro = 1e-6
+const milli = 1e-3
+const centi = 1e-2
+const deca = 1e1
+const hecto = 1e2
+const kilo = 1e3
+const mega = 1e6
+const giga = 1e9
+const tera = 1e12
+const peta = 1e15
+const exa = 1e18
+const zetta = 1e21
+const yotta = 1e24
+
+
+_ud = [
+    Unitless => 1.0,
+    # Length
+    Meter => 1,
+    AU => 2.0,
+    Parsec => 3.0,
+    # Mass
+    Gram => 1,
+    SolarMass => 2.0,
+    # Time
+    Second => 1,
+    Year => 2.0,
+]
+
+macro add_prefix(prefix, base)
+    pbase = symbol(string(prefix, base))
+    pcons = symbol(lowercase(string(prefix)))
+    return quote
+        abstract $pbase <: super($base)
+        $_ud[$pbase] = $pcons * $_ud[$base]
+    end
+end
+@add_prefix(Centi, Meter)
+@add_prefix(Kilo, Gram)
+
+SiUnit = begin
+    tl = [Meter, KiloGram, Second]
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+CgsUnit = begin
+    tl = [CentiMeter, Gram, Second]
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+# Append prefixes to all concrete units
+# TODO doesn't work because of declaring a type inside a local scope
+#for prefix=subtypes(Prefix), base=ConcreteUnit.types
+#    base = base.parameters[1]
+#    @add_prefix(prefix, base)
+#end
+
+
+##############################################################################
+# Quantity and Composite
+##############################################################################
 
 immutable Quantity
     mag::Number
@@ -76,13 +170,16 @@ Quantity(mag, unit) = Quantity(mag, unit, 1)
 
 
 type Composite
+    mag::Number
     quants::Array{Quantity, 1}
 
     function Composite(quants::Array{Quantity, 1})
         if length(quants) == 1
             return quants[1]
         end
-        new(quants)
+        mag = prod([q.mag for q in quants])
+        quants = [Quantity(1, q.unit, q.ord) for q in quants]
+        new(mag, quants)
     end
 end
 
@@ -118,6 +215,10 @@ function reduce(c::Composite)
     end
 end
 
+
+##############################################################################
+# Operators
+##############################################################################
 
 # Binary addition operator.
 function +(x::Quantity, y::Quantity)
@@ -169,92 +270,9 @@ end
 #^(x::Composite, y::Number) =
 
 
-global _ud = [
-    Unitless => 1.0,
-    # Length
-    Meter => 1,
-    AU => 2.0,
-    Parsec => 3.0,
-    # Mass
-    Gram => 1,
-    SolarMass => 2.0,
-    # Time
-    Second => 1,
-    Year => 2.0,
-]
-
-abstract Prefix
-abstract Yocto <: Prefix
-abstract Zepto <: Prefix
-abstract Atto <: Prefix
-abstract Femto <: Prefix
-abstract Pico <: Prefix
-abstract Nano <: Prefix
-abstract Micro <: Prefix
-abstract Milli <: Prefix
-abstract Centi <: Prefix
-abstract Deca <: Prefix
-abstract Hecto <: Prefix
-abstract Kilo <: Prefix
-abstract Mega <: Prefix
-abstract Giga <: Prefix
-abstract Tera <: Prefix
-abstract Peta <: Prefix
-abstract Exa <: Prefix
-abstract Zetta <: Prefix
-abstract Yotta <: Prefix
-
-const yocto = 1e-24
-const zepto = 1e-21
-const atto = 1e-18
-const femto = 1e-15
-const pico = 1e-12
-const nano = 1e-9
-const micro = 1e-6
-const milli = 1e-3
-const centi = 1e-2
-const deca = 1e1
-const hecto = 1e2
-const kilo = 1e3
-const mega = 1e6
-const giga = 1e9
-const tera = 1e12
-const peta = 1e15
-const exa = 1e18
-const zetta = 1e21
-const yotta = 1e24
-
-
-macro add_prefix(prefix, base)
-    pbase = symbol(string(prefix, base))
-    pcons = symbol(lowercase(string(prefix)))
-    return quote
-        abstract $pbase <: super($base)
-        $_ud[$pbase] = $pcons * $_ud[$base]
-    end
-end
-@add_prefix(Centi, Meter)
-@add_prefix(Kilo, Gram)
-
-SiUnit = begin
-    tl = [Meter, KiloGram, Second]
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-CgsUnit = begin
-    tl = [CentiMeter, Gram, Second]
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-# Append prefixes to all concrete units
-# TODO doesn't work because of declaring a type inside a local scope
-#for prefix=subtypes(Prefix), base=ConcreteUnit.types
-#    base = base.parameters[1]
-#    @add_prefix(prefix, base)
-#end
-
+##############################################################################
+# Printing
+##############################################################################
 
 const sup_vals = [
     -1 => "⁻",
@@ -283,24 +301,29 @@ const sub_vals = [
 ]
 
 function pretty_order(n::Rational)
+    if n.den == 1
+        return string(n.num)
+    end
     num = [sup_vals[int(string(x))] for x in string(abs(n.num))]
     if n.num < 0
         string(sup_vals[-1], num)
     end
     den = [sub_vals[int(string(x))] for x in string(abs(n.den))]
-    string(num, "/", den)
+    string(num..., '/', den...)
 end
+pretty_order(n::Number) = string(n)
+
 
 function show(io::IO, q::Quantity)
-    print("$(q.mag) $(q.unit)^$(q.ord)")
+    print("$(q.mag) $(q.unit)^$(pretty_order(q.ord))")
 end
 
 function show(io::IO, c::Composite)
-    print(prod([q.mag for q in c.quants]))
+    print(c.mag)
     for q in c.quants
-        print(" $(q.unit)^$(q.ord)")
+        print(" $(q.unit)^$(pretty_order(q.ord))")
     end
 end
 
 
-end
+end  # module Units

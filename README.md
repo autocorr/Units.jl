@@ -1,4 +1,3 @@
-
 Units.jl
 ========
 Manipulate units and physical quantities in Julia. Future functionality aims to
