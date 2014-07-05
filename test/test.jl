@@ -1,4 +1,4 @@
-import ..Units; u = Units
+include("../src/Units.jl"); u = Units
 using Base.Test
 
 custom_handler(r::Test.Success) = print('.')
