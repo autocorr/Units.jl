@@ -1,17 +1,18 @@
+module Units
 ### TODO
 # * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
 # * Composite quantities
 # * Convert function for composite
 # * Reduce function
+# * Generate prefixed units in a seperate file and use on import with function
 ### Sections
 # * Exceptions
 # * Unit definitions
-# * Quantity and Composite
+# * Container Types
 # * Operators
 # * Printing
 ###
-module Units
 
 import Base: +, -, *, /, ^, show, convert, reduce, promote, promote_rule
 
@@ -34,8 +35,10 @@ end
 ##############################################################################
 
 abstract Unit
-abstract Unitless
+abstract Unitless <: Number
+abstract DerivedUnit <: Unit
 
+# Canonical units
 abstract Length <: Unit
 abstract Meter <: Length; typealias m Meter
 abstract AU <: Length; typealias au AU
@@ -49,14 +52,58 @@ abstract Time <: Unit
 abstract Second <: Time; typealias s Second
 abstract Year <: Time; typealias yr Year
 
-abstract Energy <: Unit
-abstract ElectricCharge <: Unit
-abstract ElectricResistance <: Unit
+abstract Temperature <: Unit
+abstract Kelvin <: Temperature; typealias K Kelvin
+
+abstract ElectricCurrent <: Unit
+abstract Ampere <: ElectricCurrent; typealias A Ampere
+
+abstract AmountOfSubstance <: Unit
+abstract Mol <: AmountOfSubstance
+
+abstract LuminousIntensity <: Unit
+abstract Candela <: LuminousIntensity
+
+# Derived units
+abstract Angle <: DerivedUnit
+abstract SolidAngle <: DerivedUnit
+abstract Frequency <: DerivedUnit
+abstract Force <: DerivedUnit
+abstract Pressure <: DerivedUnit
+abstract Energy <: DerivedUnit
+abstract Power <: DerivedUnit
+abstract ElectricCharge <: DerivedUnit
+abstract Voltage <: DerivedUnit
+abstract ElectricCapacitance <: DerivedUnit
+abstract ElectricResistance <: DerivedUnit
+abstract ElectricConductance <: DerivedUnit
+abstract MagneticFlux <: DerivedUnit
+abstract MagneticFieldStrength <: DerivedUnit
+abstract Inductance <: DerivedUnit
+abstract LuminousFlux <: DerivedUnit
+abstract Illuminance <: DerivedUnit
+abstract Radioactivity <: DerivedUnit
+abstract AbsorbedDose <: DerivedUnit
+abstract EquivalentDose <: DerivedUnit
+abstract CatalyticActivity <: DerivedUnit
+typealias Weight Force
+typealias Stress Pressure
+typealias Work Energy
+typealias Heat Energy
+typealias RadiateFlux Power
+typealias EMF Voltage
+typealias Impedance ElectricResistance
+typealias Reactance ElectricResistance
 
 
 BaseUnit = begin
     tl = [Type{T} for T in subtypes(Unit)]
     Union(tl...)
+end
+
+AbstractUnit = begin
+    tl = [Type{T} for T in subtypes(DerivedUnit)]
+    Union(BaseUnit, tl...)
 end
 
 ConcreteUnit = begin
@@ -76,6 +123,7 @@ abstract Nano <: Prefix
 abstract Micro <: Prefix
 abstract Milli <: Prefix
 abstract Centi <: Prefix
+abstract Deci <: Prefix
 abstract Deca <: Prefix
 abstract Hecto <: Prefix
 abstract Kilo <: Prefix
@@ -96,6 +144,7 @@ const nano = 1e-9
 const micro = 1e-6
 const milli = 1e-3
 const centi = 1e-2
+const deci = 1e-1
 const deca = 1e1
 const hecto = 1e2
 const kilo = 1e3
@@ -107,46 +156,96 @@ const exa = 1e18
 const zetta = 1e21
 const yotta = 1e24
 
-
-_ud = [
-    Unitless => 1.0,
-    # Length
-    Meter => 1,
-    AU => 2.0,
-    Parsec => 3.0,
-    # Mass
-    Gram => 1,
-    SolarMass => 2.0,
-    # Time
-    Second => 1,
-    Year => 2.0,
+prefix_short_forms = [
+    Yocto => "y",
+    Zepto => "z",
+    Atto => "a",
+    Femto => "f",
+    Pico => "p",
+    Nano => "n",
+    Micro => "μ",
+    Milli => "m",
+    Centi => "c",
+    Deci => "d",
+    Deca => "da",
+    Hecto => "h",
+    Kilo => "k",
+    Mega => "M",
+    Giga => "G",
+    Tera => "T",
+    Peta => "P",
+    Exa => "E",
+    Zetta => "Z",
+    Yotta => "Y",
 ]
+
 
 macro add_prefix(prefix, base)
     pbase = symbol(string(prefix, base))
+    pinst = symbol(lowercase(string(prefix, base)))
     pcons = symbol(lowercase(string(prefix)))
     return quote
         abstract $pbase <: super($base)
-        $_ud[$pbase] = $pcons * $_ud[$base]
+        const $pinst = UnitDef{$pbase}(
+            string($pbase),
+            string(prefix_short_forms[$pcons], $base),
+            $pcons * $ud[$base].ref,
+            $ud[$base].dim,
+        )
     end
 end
 @add_prefix(Centi, Meter)
 @add_prefix(Kilo, Gram)
 
 SiUnit = begin
-    tl = [Meter, KiloGram, Second]
+    tl = [Meter, KiloGram, Second]  # FIXME
     tl = [Type{T} for T in tl]
     Union(tl...)
 end
 
 CgsUnit = begin
-    tl = [CentiMeter, Gram, Second]
+    tl = [CentiMeter, Gram, Second]  # FIXME
     tl = [Type{T} for T in tl]
     Union(tl...)
 end
 
+
+immutable UnitDef{U}  # FIXME more rigorous type defintion
+    name::String
+    abbrev::String
+    ref::Number
+    dim::Dimension
+end
+UnitDef{U}(name, ref, dim) = UnitDef{U}(name, name, ref, dim)
+
+# Length
+const meter = UnitDef{Meter}("Meter", "m", 1, Dimension(l=1))
+const au = UnitDef{AU}("AU", "au", 2, Dimension(l=1))
+const parsec = UnitDef{Parsec}("Parsec", "pc", 3, Dimension(l=1))
+# Mass
+const gram = UnitDef{Gram}("Gram", "g", 1, Dimension(m=1))
+const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, Dimension(m=1))
+# Time
+const second = UnitDef{Second}("Second", "s", 1, Dimension(t=1))
+const year = UnitDef{Year}("Year", "yr", 2, Dimension(t=1))
+
+ud = [
+    # Length
+    Meter => UnitDef{Meter}("Meter", "m", 1, Dimension(l=1)),
+    AU => UnitDef{AU}("AU", "au", 2, Dimension(l=1)),
+    Parsec => UnitDef{Parsec}("Parsec", "pc", 3, Dimension(l=1)),
+    # Mass
+    Gram => UnitDef{Gram}("Gram", "g", 1, Dimension(m=1)),
+    SolarMass => UnitDef{SolarMass}("SolarMass", "Msun", 2, Dimension(m=1)),
+    # Time
+    Second => UnitDef{Second}("Second", "s", 1, Dimension(t=1)),
+    Year => UnitDef{Year}("Year", "yr", 2, Dimension(t=1)),
+]
+
+
 # Append prefixes to all concrete units
-# TODO doesn't work because of declaring a type inside a local scope
+# FIXME doesn't work because of declaring a type inside a local scope
+# such as this `for` loop
 #for prefix=subtypes(Prefix), base=ConcreteUnit.types
 #    base = base.parameters[1]
 #    @add_prefix(prefix, base)
@@ -154,26 +253,46 @@ end
 
 
 ##############################################################################
-# Quantity and Composite
+# Container Types
 ##############################################################################
+
+immutable Dimension
+    l::Number
+    m::Number
+    t::Number
+    i::Number
+    θ::Number
+    n::Number
+    j::Number
+    data::AbstractArray
+
+    function Dimension(l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
+        data = [l, m, t, i, θ, n, j]
+        new(l, m, t, i, θ, n, j, data)
+    end
+end
+Dimension(data::AbstractArray) = Dimension(data...)
+const dimensionless = Dimension()
+
 
 immutable Quantity
     mag::Number
     unit::ConcreteUnit
     ord::Number
     base::BaseUnit
+    dim::Dimension
 
     function Quantity(mag::Number, unit::ConcreteUnit, ord::Number)
         if ord == 0
-            unit = Unitless
-            base = Unitless
+            return mag
         else
             base = super(unit)
         end
-        new(mag, unit, ord, base)
+        dim = dimensionless  # FIXME
+        new(mag, unit, ord, base, dim)
     end
 end
-Quantity(mag, unit) = Quantity(mag, unit, 1)
+Quantity(mag::Number, unit::ConcreteUnit) = Quantity(mag, unit, 1)
 
 
 type Composite
@@ -189,6 +308,7 @@ type Composite
         new(mag, quants)
     end
 end
+Composite(s::String) = parse_unit_string(s)
 
 
 # Checks if unit quantities are compatible for conversion
@@ -267,6 +387,8 @@ function /(x::Quantity, y::Quantity)
         Composite([x, 1 / y])
     end
 end
+/(x::Quantity, y::ConcreteUnit) = x / (1 * y)
+/(x::ConcreteUnit, y::Quantity) = (1 * x) / y
 
 # Binary exponentiation operator.
 ^(x::ConcreteUnit, y::Number) = Quantity(1, x, y)
@@ -308,27 +430,30 @@ const sub_vals = [
 ]
 
 function pretty_order(n::Rational)
+    if n.num == 1 & n.den == 1
+        return ""
+    end
     if n.den == 1
-        return string(n.num)
+        return string('^', n.num)
     end
     num = [sup_vals[int(string(x))] for x in string(abs(n.num))]
     if n.num < 0
         string(sup_vals[-1], num)
     end
     den = [sub_vals[int(string(x))] for x in string(abs(n.den))]
-    string(num..., '/', den...)
+    string('^', num..., '/', den...)
 end
 pretty_order(n::Number) = string(n)
 
 
 function show(io::IO, q::Quantity)
-    print("$(q.mag) $(q.unit)^$(pretty_order(q.ord))")
+    print("$(q.mag) $(q.unit)$(pretty_order(q.ord))")
 end
 
 function show(io::IO, c::Composite)
     print(c.mag)
     for q in c.quants
-        print(" $(q.unit)^$(pretty_order(q.ord))")
+        print(" $(q.unit)$(pretty_order(q.ord))")
     end
 end
 
