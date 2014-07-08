@@ -7,31 +7,22 @@ module Units
 # * Reduce function
 # * Generate prefixed units in a seperate file and use on import with function
 ### Sections
+# * Unit Abstracts
 # * Exceptions
-# * Unit definitions
 # * Container Types
+# * Prefixes
+# * Conversion
 # * Operators
 # * Printing
 ###
 
-import Base: +, -, *, /, ^, show, convert, reduce, promote, promote_rule
+import Base: +, -, *, /, ^
+import Base: show, showcompact
+import Base: convert, reduce, promote, promote_rule
 
 
 ##############################################################################
-# Exceptions
-##############################################################################
-
-type UnitError <: Exception
-    msg::String
-
-    function UnitError(msg::String="")
-        new(msg)
-    end
-end
-
-
-##############################################################################
-# Unit definitions
+# Unit abstracts
 ##############################################################################
 
 abstract Unit
@@ -40,23 +31,23 @@ abstract DerivedUnit <: Unit
 
 # Canonical units
 abstract Length <: Unit
-abstract Meter <: Length; typealias m Meter
-abstract AU <: Length; typealias au AU
-abstract Parsec <: Length; typealias pc Parsec
+abstract Meter <: Length
+abstract AU <: Length
+abstract Parsec <: Length
 
 abstract Mass <: Unit
 abstract Gram <: Mass
-abstract SolarMass <: Mass; typealias msol SolarMass
+abstract SolarMass <: Mass
 
 abstract Time <: Unit
-abstract Second <: Time; typealias s Second
-abstract Year <: Time; typealias yr Year
+abstract Second <: Time
+abstract Year <: Time
 
 abstract Temperature <: Unit
-abstract Kelvin <: Temperature; typealias K Kelvin
+abstract Kelvin <: Temperature
 
 abstract ElectricCurrent <: Unit
-abstract Ampere <: ElectricCurrent; typealias A Ampere
+abstract Ampere <: ElectricCurrent
 
 abstract AmountOfSubstance <: Unit
 abstract Mol <: AmountOfSubstance
@@ -112,6 +103,100 @@ ConcreteUnit = begin
     Union(tl...)
 end
 
+
+##############################################################################
+# Exceptions
+##############################################################################
+
+type UnitError <: Exception
+    msg::String
+
+    function UnitError(msg::String="")
+        new(msg)
+    end
+end
+
+
+##############################################################################
+# Container Types
+##############################################################################
+
+immutable Dimension
+    l::Number
+    m::Number
+    t::Number
+    i::Number
+    θ::Number
+    n::Number
+    j::Number
+    data::AbstractArray
+
+    function Dimension(;l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
+        data = [l, m, t, i, θ, n, j]
+        new(l, m, t, i, θ, n, j, data)
+    end
+end
+Dimension(data::AbstractArray) = Dimension(data...)
+const dimensionless = Dimension()
+
+
+immutable UnitDef{U}  # FIXME more rigorous type defintion
+    name::String
+    abbrev::String
+    ref::Number
+    dim::Dimension
+end
+UnitDef(name, ref, dim) = UnitDef(name, name, ref, dim)
+
+
+immutable Quantity
+    mag::Number
+    unit::UnitDef
+    ord::Number
+    base::AbstractUnit
+    dim::Dimension
+
+    function Quantity{U}(mag::Number, unit::UnitDef{U}, ord::Number)
+        if ord == 0
+            return mag
+        else
+            base = super(U)
+        end
+        dim = dimensionless  # FIXME
+        new(mag, unit, ord, base, dim)
+    end
+end
+Quantity{U}(mag::Number, unit::UnitDef{U}) = Quantity(mag, unit, 1)
+
+
+type Composite
+    mag::Number
+    quants::Array{Quantity, 1}
+
+    function Composite(quants::Array{Quantity, 1})
+        if length(quants) == 1
+            return quants[1]
+        end
+        mag = prod([q.mag for q in quants])
+        quants = [Quantity(1, q.unit, q.ord) for q in quants]
+        new(mag, quants)
+    end
+end
+Composite(s::String) = parse_unit_string(s)
+
+
+##############################################################################
+# Prefixes
+##############################################################################
+
+function parse_unit_string(s::String)
+    nothing
+end
+
+
+##############################################################################
+# Prefixes
+##############################################################################
 
 abstract Prefix
 abstract Yocto <: Prefix
@@ -180,44 +265,6 @@ prefix_short_forms = [
 ]
 
 
-macro add_prefix(prefix, base)
-    pbase = symbol(string(prefix, base))
-    pinst = symbol(lowercase(string(prefix, base)))
-    pcons = symbol(lowercase(string(prefix)))
-    return quote
-        abstract $pbase <: super($base)
-        const $pinst = UnitDef{$pbase}(
-            string($pbase),
-            string(prefix_short_forms[$pcons], $base),
-            $pcons * $ud[$base].ref,
-            $ud[$base].dim,
-        )
-    end
-end
-@add_prefix(Centi, Meter)
-@add_prefix(Kilo, Gram)
-
-SiUnit = begin
-    tl = [Meter, KiloGram, Second]  # FIXME
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-CgsUnit = begin
-    tl = [CentiMeter, Gram, Second]  # FIXME
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-
-immutable UnitDef{U}  # FIXME more rigorous type defintion
-    name::String
-    abbrev::String
-    ref::Number
-    dim::Dimension
-end
-UnitDef{U}(name, ref, dim) = UnitDef{U}(name, name, ref, dim)
-
 # Length
 const meter = UnitDef{Meter}("Meter", "m", 1, Dimension(l=1))
 const au = UnitDef{AU}("AU", "au", 2, Dimension(l=1))
@@ -243,6 +290,38 @@ ud = [
 ]
 
 
+macro add_prefix(prefix, base)
+    pbase = symbol(string(prefix, base))
+    pinst = symbol(lowercase(string(prefix, base)))
+    binst = symbol(lowercase(string(base)))
+    pcons = symbol(lowercase(string(prefix)))
+    return quote
+        abstract $pbase <: super($base)
+        const $pinst = UnitDef{$pbase}(
+            string($pbase),
+            string(prefix_short_forms[$prefix], $base),
+            $pcons * $binst.ref,
+            $binst.dim,
+        )
+    end
+end
+@add_prefix(Centi, Meter)
+@add_prefix(Kilo, Gram)
+@add_prefix(Femto, Parsec)
+
+SiUnit = begin
+    tl = [Meter, KiloGram, Second]  # FIXME
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+CgsUnit = begin
+    tl = [CentiMeter, Gram, Second]  # FIXME
+    tl = [Type{T} for T in tl]
+    Union(tl...)
+end
+
+
 # Append prefixes to all concrete units
 # FIXME doesn't work because of declaring a type inside a local scope
 # such as this `for` loop
@@ -253,63 +332,8 @@ ud = [
 
 
 ##############################################################################
-# Container Types
+# Conversion
 ##############################################################################
-
-immutable Dimension
-    l::Number
-    m::Number
-    t::Number
-    i::Number
-    θ::Number
-    n::Number
-    j::Number
-    data::AbstractArray
-
-    function Dimension(l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
-        data = [l, m, t, i, θ, n, j]
-        new(l, m, t, i, θ, n, j, data)
-    end
-end
-Dimension(data::AbstractArray) = Dimension(data...)
-const dimensionless = Dimension()
-
-
-immutable Quantity
-    mag::Number
-    unit::ConcreteUnit
-    ord::Number
-    base::BaseUnit
-    dim::Dimension
-
-    function Quantity(mag::Number, unit::ConcreteUnit, ord::Number)
-        if ord == 0
-            return mag
-        else
-            base = super(unit)
-        end
-        dim = dimensionless  # FIXME
-        new(mag, unit, ord, base, dim)
-    end
-end
-Quantity(mag::Number, unit::ConcreteUnit) = Quantity(mag, unit, 1)
-
-
-type Composite
-    mag::Number
-    quants::Array{Quantity, 1}
-
-    function Composite(quants::Array{Quantity, 1})
-        if length(quants) == 1
-            return quants[1]
-        end
-        mag = prod([q.mag for q in quants])
-        quants = [Quantity(1, q.unit, q.ord) for q in quants]
-        new(mag, quants)
-    end
-end
-Composite(s::String) = parse_unit_string(s)
-
 
 # Checks if unit quantities are compatible for conversion
 function assert_compatible(x::Quantity, y::Quantity)
@@ -443,17 +467,37 @@ function pretty_order(n::Rational)
     den = [sub_vals[int(string(x))] for x in string(abs(n.den))]
     string('^', num..., '/', den...)
 end
-pretty_order(n::Number) = string(n)
+pretty_order(n::Number) = string('^', n)
 
+
+function show(io::IO, d::Dimension)
+    print("Dimension(d=$(d.l), m=$(d.m), t=$(d.t), " *
+          " i=$(d.i), θ=$(d.θ), n=$(d.n), j=$(d.j))")
+end
+showcompact(io::IO, d::Dimension) = print(d.data')
+
+show(io::IO, u::UnitDef) = print(io, u.name)
+showcompact(io::IO, u::UnitDef) = print(io, u.abbrev)
 
 function show(io::IO, q::Quantity)
-    print("$(q.mag) $(q.unit)$(pretty_order(q.ord))")
+    print(io, "$(q.mag) $(q.unit.name)$(pretty_order(q.ord))")
+end
+
+function showcompact(io::IO, q::Quantity)
+    print(io, "$(q.mag) $(q.unit.abbrev)$(pretty_order(q.ord))")
 end
 
 function show(io::IO, c::Composite)
-    print(c.mag)
+    print(io, c.mag)
     for q in c.quants
-        print(" $(q.unit)$(pretty_order(q.ord))")
+        print(io, " $(q.unit.name)$(pretty_order(q.ord))")
+    end
+end
+
+function showcompact(io::IO, c::Composite)
+    print(io, c.mag)
+    for q in c.quants
+        print(io, " $(q.unit.abbrev)$(pretty_order(q.ord))")
     end
 end
 
