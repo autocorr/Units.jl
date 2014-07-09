@@ -207,36 +207,29 @@ UnitDef(name, ref, dim) = UnitDef(name, name, ref, dim)
 
 
 immutable Quantity
-    mag::Number
     unit::UnitDef
+    utype::Type
     ord::Number
-    base::AbstractUnit
+    base::Type
     dim::Dimension
 
-    function Quantity{U}(mag::Number, unit::UnitDef{U}, ord::Number)
-        if ord == 0
-            return mag
-        else
-            base = super(U)
-        end
+    function Quantity{U}(unit::UnitDef{U}, ord::Number)
         dim = Dimension((unit.dim.data .* ord)...)
-        new(mag, unit, ord, base, dim)
+        new(unit, U, ord, super(U), dim)
     end
 end
-Quantity{U}(mag::Number, unit::UnitDef{U}) = Quantity(mag, unit, 1//1)
+Quantity{U}(unit::UnitDef{U}) = Quantity(unit, 1//1)
 
 
 type Composite
     mag::Number
     quants::Array{Quantity, 1}
 
-    function Composite(quants::Array{Quantity, 1})
-        mag = prod([q.mag for q in quants])
-        quants = [Quantity(1, q.unit, q.ord) for q in quants]
+    function Composite(mag::Number, quants::Array{Quantity, 1})
         new(mag, quants)
     end
 end
-Composite(s::String) = eval(parse(s))
+Composite(s::String) = eval(parse(s))::Composite
 
 
 UnitContainer = Union(UnitDef, Quantity, Composite)
@@ -373,7 +366,7 @@ end
 # Conversion
 ##############################################################################
 
-convert{U}(::Type{Quantity}, x::UnitDef{U}) = Quantity(1, x)
+convert{U}(::Type{Quantity}, x::UnitDef{U}) = Quantity(x)
 convert(::Type{Composite}, x::Quantity) = Composite([x])
 
 promote_rule{U}(::Type{UnitDef{U}}, ::Type{Quantity}) = Quantity
