@@ -1,6 +1,5 @@
 module Units
 ### TODO
-# * typealiases for abbreviations of concrete types
 # * Macro to make typealias for SI prefixes
 # * Composite quantities
 # * Convert function for composite
@@ -16,9 +15,9 @@ module Units
 # * Printing
 ###
 
-import Base: +, -, *, /, ^
+import Base: +, -, *, /, ^, ==
 import Base: show, showcompact
-import Base: convert, reduce, promote, promote_rule
+import Base: convert, promote_rule, promote, reduce
 
 
 ##############################################################################
@@ -26,7 +25,6 @@ import Base: convert, reduce, promote, promote_rule
 ##############################################################################
 
 abstract Unit
-abstract Unitless <: Number
 abstract DerivedUnit <: Unit
 
 # Canonical units
@@ -57,26 +55,83 @@ abstract Candela <: LuminousIntensity
 
 # Derived units
 abstract Angle <: DerivedUnit
+abstract Radian <: Angle
+
 abstract SolidAngle <: DerivedUnit
+abstract Steradian <: SolidAngle
+
 abstract Frequency <: DerivedUnit
+abstract Hertz <: Frequency
+
+abstract Acceleration <: DerivedUnit
+abstract Gal <: Acceleration
+
 abstract Force <: DerivedUnit
+abstract Newton <: Force
+abstract Dyne <: Force
+
 abstract Pressure <: DerivedUnit
+abstract Pascal <: Pressure
+abstract Barye <: Pressure
+
 abstract Energy <: DerivedUnit
+abstract Joule <: Energy
+abstract Erg <: Energy
+
 abstract Power <: DerivedUnit
+abstract Watt <: Power
+
 abstract ElectricCharge <: DerivedUnit
+abstract Coulomb <: ElectricCharge
+
 abstract Voltage <: DerivedUnit
+abstract Volt <: Voltage
+
 abstract ElectricCapacitance <: DerivedUnit
+abstract Farad <: ElectricCapacitance
+
 abstract ElectricResistance <: DerivedUnit
+abstract Ohm <: ElectricResistance
+
 abstract ElectricConductance <: DerivedUnit
+abstract Siemens <: ElectricConductance
+
 abstract MagneticFlux <: DerivedUnit
-abstract MagneticFieldStrength <: DerivedUnit
+abstract Weber <: MagneticFlux
+
+abstract MagneticFluxDensity <: DerivedUnit
+abstract Tesla <: MagneticFluxDensity
+
 abstract Inductance <: DerivedUnit
+abstract Henry <: Inductance
+
 abstract LuminousFlux <: DerivedUnit
+abstract Lumen <: LuminousFlux
+
 abstract Illuminance <: DerivedUnit
+abstract Lux <: Illuminance
+
 abstract Radioactivity <: DerivedUnit
+abstract Becquerel <: Radioactivity
+
 abstract AbsorbedDose <: DerivedUnit
+abstract Gray <: AbsorbedDose
+
 abstract EquivalentDose <: DerivedUnit
+abstract Sievert <: EquivalentDose
+
 abstract CatalyticActivity <: DerivedUnit
+abstract Katal <: CatalyticActivity
+
+abstract DynamicViscosity <: DerivedUnit
+abstract Poise <: DynamicViscosity
+
+abstract KinematicViscosity <: DerivedUnit
+abstract Stokes <: KinematicViscosity
+
+abstract Wavenumber <: DerivedUnit
+abstract Kayser <: Wavenumber
+
 typealias Weight Force
 typealias Stress Pressure
 typealias Work Energy
@@ -85,8 +140,10 @@ typealias RadiateFlux Power
 typealias EMF Voltage
 typealias Impedance ElectricResistance
 typealias Reactance ElectricResistance
+typealias MagneticFieldStrength MagneticFluxDensity
 
 
+# FIXME these will break user-defined units
 BaseUnit = begin
     tl = [Type{T} for T in subtypes(Unit)]
     Union(tl...)
@@ -131,7 +188,7 @@ immutable Dimension
     j::Number
     data::AbstractArray
 
-    function Dimension(;l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
+    function Dimension(l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
         data = [l, m, t, i, θ, n, j]
         new(l, m, t, i, θ, n, j, data)
     end
@@ -162,11 +219,11 @@ immutable Quantity
         else
             base = super(U)
         end
-        dim = dimensionless  # FIXME
+        dim = Dimension((unit.dim.data .* ord)...)
         new(mag, unit, ord, base, dim)
     end
 end
-Quantity{U}(mag::Number, unit::UnitDef{U}) = Quantity(mag, unit, 1)
+Quantity{U}(mag::Number, unit::UnitDef{U}) = Quantity(mag, unit, 1//1)
 
 
 type Composite
@@ -174,24 +231,15 @@ type Composite
     quants::Array{Quantity, 1}
 
     function Composite(quants::Array{Quantity, 1})
-        if length(quants) == 1
-            return quants[1]
-        end
         mag = prod([q.mag for q in quants])
         quants = [Quantity(1, q.unit, q.ord) for q in quants]
         new(mag, quants)
     end
 end
-Composite(s::String) = parse_unit_string(s)
+Composite(s::String) = eval(parse(s))
 
 
-##############################################################################
-# Prefixes
-##############################################################################
-
-function parse_unit_string(s::String)
-    nothing
-end
+UnitContainer = Union(UnitDef, Quantity, Composite)
 
 
 ##############################################################################
@@ -248,7 +296,7 @@ prefix_short_forms = [
     Femto => "f",
     Pico => "p",
     Nano => "n",
-    Micro => "μ",
+    Micro => "μ",  # Unicde mu
     Milli => "m",
     Centi => "c",
     Deci => "d",
@@ -266,28 +314,18 @@ prefix_short_forms = [
 
 
 # Length
-const meter = UnitDef{Meter}("Meter", "m", 1, Dimension(l=1))
-const au = UnitDef{AU}("AU", "au", 2, Dimension(l=1))
-const parsec = UnitDef{Parsec}("Parsec", "pc", 3, Dimension(l=1))
+const length_dim = Dimension(1,0,0,0,0,0,0)
+const meter = UnitDef{Meter}("Meter", "m", 1, length_dim)
+const au = UnitDef{AU}("AU", "au", 2, length_dim)
+const parsec = UnitDef{Parsec}("Parsec", "pc", 3, length_dim)
 # Mass
-const gram = UnitDef{Gram}("Gram", "g", 1, Dimension(m=1))
-const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, Dimension(m=1))
+const mass_dim = Dimension(0,1,0,0,0,0,0)
+const gram = UnitDef{Gram}("Gram", "g", 1, mass_dim)
+const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, mass_dim)
 # Time
-const second = UnitDef{Second}("Second", "s", 1, Dimension(t=1))
-const year = UnitDef{Year}("Year", "yr", 2, Dimension(t=1))
-
-ud = [
-    # Length
-    Meter => UnitDef{Meter}("Meter", "m", 1, Dimension(l=1)),
-    AU => UnitDef{AU}("AU", "au", 2, Dimension(l=1)),
-    Parsec => UnitDef{Parsec}("Parsec", "pc", 3, Dimension(l=1)),
-    # Mass
-    Gram => UnitDef{Gram}("Gram", "g", 1, Dimension(m=1)),
-    SolarMass => UnitDef{SolarMass}("SolarMass", "Msun", 2, Dimension(m=1)),
-    # Time
-    Second => UnitDef{Second}("Second", "s", 1, Dimension(t=1)),
-    Year => UnitDef{Year}("Year", "yr", 2, Dimension(t=1)),
-]
+const time_dim = Dimension(0,0,1,0,0,0,0)
+const second = UnitDef{Second}("Second", "s", 1, time_dim)
+const year = UnitDef{Year}("Year", "yr", 2, time_dim)
 
 
 macro add_prefix(prefix, base)
@@ -335,34 +373,61 @@ end
 # Conversion
 ##############################################################################
 
-# Checks if unit quantities are compatible for conversion
-function assert_compatible(x::Quantity, y::Quantity)
-    if x.base != y.base
-        throw(UnitError("$(x.base) != $(y.base) : Units must be compatible."))
-    elseif x.ord != y.ord
+convert{U}(::Type{Quantity}, x::UnitDef{U}) = Quantity(1, x)
+convert(::Type{Composite}, x::Quantity) = Composite([x])
+
+promote_rule{U}(::Type{UnitDef{U}}, ::Type{Quantity}) = Quantity
+promote_rule(::Type{Quantity}, ::Type{Composite}) = Composite
+
+
+function check_base(x::Quantity, y::Quantity)
+    if !is(x.base, y.base)
+        throw(UnitError("$(x.base) != $(y.base) : Bases must be compatible."))
+    end
+end
+
+function check_dim(x::Quantity, y::Quantity)
+    if x.dim != y.dim
+        throw(UnitError("$(x.dim) != $(y.dim) : Dimensions must be compatible."))
+    end
+end
+function check_dim(x::Composite, y::Composite)
+    xdim = sum([q.dim for q in x.quants])
+    ydim = sum([q.dim for q in y.quants])
+    if xdim != ydim
+        throw(UnitError("$(xdim) != $(ydim) : Dimensions must be compatible."))
+    end
+end
+
+function check_order(x::Quantity, y::Quantity)
+    if x.ord != y.ord
         throw(UnitError("$(x.ord) != $(y.ord) : Units must be same order."))
     end
 end
 
-# Converts unit `x` to unit `y` for units of compatible type.
-function convert(y::ConcreteUnit, x::Quantity)
-    assert_compatible(x, Quantity(1, y))
-    Quantity(_ud[x.unit] / _ud[y], y, x.ord)
+function check_compatible(x::Quantity, y::Quantity)
+    check_dim(x, y)
+    check_order(x, y)
 end
-function convert(y::Quantity, x::Quantity)
-    assert_compatible(x, y)
-    Quantity(x.mag * _ud[x.unit] / _ud[y.unit], y.unit, x.ord)
+
+# Unit conversion from `x` to unit `y` for units of compatible type.
+function to(x::Quantity, y::Quantity)
+    check_compatible(x, y)
+    Quantity(x.mag * y.mag * (y.unit.ref / x.unit.ref),
+             y.unit, y.ord)
 end
-# TODO
-# function convert(y::Composite, x::Composite) = nothing
-# function convert(y::Quantity, x::Composite) = nothing
-# function convert(y::ConcreteUnit, x::Composite) = nothing
+function to(x::Composite, y::Composite)
+    # FIXME
+end
 
 
 # Reduce a composite quantity to the lowest dimensions
 function reduce(c::Composite)
     for q in c.quants
-        # TODO
+        # FIXME
+        # Group into same base
+        # Perform conversion and multiplication for each quantity in base
+        # Reassign quantities
     end
 end
 
@@ -371,9 +436,15 @@ end
 # Operators
 ##############################################################################
 
-# Binary addition operator.
+# Binary addition operator. Returned in units of the first argument.
 function +(x::Quantity, y::Quantity)
-    Quantity(x.mag + convert(x, y).mag, x.unit, x.ord)
+    Quantity(x.mag + to(x, y).mag, x.unit, x.ord)
+end
+function +(x::Composite, y::Composite)
+    check_dim(x, y)
+    x = reduce(x)
+    y = reduce(y)
+    # FIXME
 end
 
 # Binary subtraction operator.
@@ -395,9 +466,6 @@ function *(x::Quantity, y::Composite)
     append!(y.quants, [x])
 end
 *(x::Composite, y::Quantity) = y * x
-# TODO handle operations with promote_rule ?
-#*(x::Composite, y::ConcreteUnit) =
-#*(x::Composite, y::Number) =
 
 # Binary division operator.
 /(x::ConcreteUnit, y::Number) = Quantity(1 / y, x)
@@ -419,8 +487,23 @@ end
 # Add integer to avoid method ambiguity with ^(::Any, ::Integer)
 ^(x::Quantity, y::Integer) = Quantity(x.mag^y, x.unit, x.ord * y)
 ^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord * y)
-#^(x::Composite, y::Integer) =
-#^(x::Composite, y::Number) =
+
+
+# Catch-all
++(x::UnitContainer, y::UnitContainer) = +(promote(x, y)...)
+-(x::UnitContainer, y::UnitContainer) = -(promote(x, y)...)
+*(x::UnitContainer, y::UnitContainer) = *(promote(x, y)...)
+/(x::UnitContainer, y::UnitContainer) = /(promote(x, y)...)
+
+
+# Dimension
+-(x::Dimension) = Dimension((-x.data)...)
++(x::Dimension, y::Dimension) = Dimension((x.data .+ y.data)...)
+-(x::Dimension, y::Dimension) = Dimension((x.data .- y.data)...)
+*(x::Dimension, y::Dimension) = Dimension((x.data .* y.data)...)
+/(x::Dimension, y::Dimension) = Dimension((x.data ./ y.data)...)
+==(x::Dimension, y::Dimension) = x.data .== y.data
+!=(x::Dimension, y::Dimension) = x.data .!= y.data
 
 
 ##############################################################################
@@ -472,7 +555,7 @@ pretty_order(n::Number) = string('^', n)
 
 function show(io::IO, d::Dimension)
     print("Dimension(d=$(d.l), m=$(d.m), t=$(d.t), " *
-          " i=$(d.i), θ=$(d.θ), n=$(d.n), j=$(d.j))")
+          "i=$(d.i), θ=$(d.θ), n=$(d.n), j=$(d.j))")
 end
 showcompact(io::IO, d::Dimension) = print(d.data')
 
