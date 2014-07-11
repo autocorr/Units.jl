@@ -6,18 +6,92 @@ module Units
 # * Reduce function
 # * Generate prefixed units in a seperate file and use on import with function
 ### Sections
-# * Unit Abstracts
-# * Exceptions
 # * Container Types
+# * Exceptions
+# * Unit Abstracts
 # * Prefixes
 # * Conversion
 # * Operators
 # * Printing
 ###
 
-import Base: +, -, *, /, ^, ==
+import Base: +, -, *, /, ^, ==, >, <, <=, >=
 import Base: show, showcompact
 import Base: convert, promote_rule, promote, reduce
+
+
+##############################################################################
+# Container Types
+##############################################################################
+
+immutable Dimension
+    l::Number
+    m::Number
+    t::Number
+    i::Number
+    θ::Number
+    n::Number
+    j::Number
+    data::AbstractArray
+
+    function Dimension(l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
+        data = [l, m, t, i, θ, n, j]
+        new(l, m, t, i, θ, n, j, data)
+    end
+end
+Dimension(data::AbstractArray) = Dimension(data...)
+const dimensionless = Dimension()
+
+
+immutable UnitDef{U}  # FIXME more rigorous type defintion
+    name::String
+    abbrev::String
+    ref::Number
+    dim::Dimension
+end
+UnitDef(name, ref, dim) = UnitDef(name, name, ref, dim)
+
+
+immutable Quantity
+    unit::UnitDef
+    utype::Type
+    ord::Number
+    base::Type
+    dim::Dimension
+
+    function Quantity{U}(unit::UnitDef{U}, ord::Number)
+        dim = Dimension((unit.dim.data .* ord)...)
+        new(unit, U, ord, super(U), dim)
+    end
+end
+Quantity{U}(unit::UnitDef{U}) = Quantity(unit, 1//1)
+
+
+type Composite
+    mag::Number
+    quants::AbstractArray{Quantity, 1}
+
+    function Composite(mag::Number, quants::AbstractArray{Quantity, 1})
+        new(mag, quants)
+    end
+end
+Composite(s::String) = eval(parse(s))::Composite
+
+
+UnitContainer = Union(UnitDef, Quantity, Composite)
+
+
+##############################################################################
+# Exceptions
+##############################################################################
+
+type UnitError <: Exception
+    msg::String
+
+    function UnitError(msg::String="")
+        new(msg)
+    end
+end
 
 
 ##############################################################################
@@ -143,7 +217,9 @@ typealias Reactance ElectricResistance
 typealias MagneticFieldStrength MagneticFluxDensity
 
 
-# FIXME these will break user-defined units
+# TODO
+# in order for these to work with user defined types, they will have to do:
+#     > BaseUnit = Union(BaseUnit, Type{Foo})
 BaseUnit = begin
     tl = [Type{T} for T in subtypes(Unit)]
     Union(tl...)
@@ -159,80 +235,6 @@ ConcreteUnit = begin
     tl = [Type{T} for T in tl]
     Union(tl...)
 end
-
-
-##############################################################################
-# Exceptions
-##############################################################################
-
-type UnitError <: Exception
-    msg::String
-
-    function UnitError(msg::String="")
-        new(msg)
-    end
-end
-
-
-##############################################################################
-# Container Types
-##############################################################################
-
-immutable Dimension
-    l::Number
-    m::Number
-    t::Number
-    i::Number
-    θ::Number
-    n::Number
-    j::Number
-    data::AbstractArray
-
-    function Dimension(l=0, m=0, t=0, i=0, θ=0, n=0, j=0)
-        data = [l, m, t, i, θ, n, j]
-        new(l, m, t, i, θ, n, j, data)
-    end
-end
-Dimension(data::AbstractArray) = Dimension(data...)
-const dimensionless = Dimension()
-
-
-immutable UnitDef{U}  # FIXME more rigorous type defintion
-    name::String
-    abbrev::String
-    ref::Number
-    dim::Dimension
-end
-UnitDef(name, ref, dim) = UnitDef(name, name, ref, dim)
-
-
-immutable Quantity
-    unit::UnitDef
-    utype::Type
-    ord::Number
-    base::Type
-    dim::Dimension
-
-    function Quantity{U}(unit::UnitDef{U}, ord::Number)
-        dim = Dimension((unit.dim.data .* ord)...)
-        new(unit, U, ord, super(U), dim)
-    end
-end
-Quantity{U}(unit::UnitDef{U}) = Quantity(unit, 1//1)
-
-
-type Composite
-    mag::Number
-    quants::Array{Quantity, 1}
-
-    function Composite(mag::Number, quants::Array{Quantity, 1})
-        new(mag, quants)
-    end
-end
-Composite(s::String) = eval(parse(s))::Composite
-
-
-UnitContainer = Union(UnitDef, Quantity, Composite)
 
 
 ##############################################################################
@@ -326,11 +328,12 @@ macro add_prefix(prefix, base)
     pinst = symbol(lowercase(string(prefix, base)))
     binst = symbol(lowercase(string(base)))
     pcons = symbol(lowercase(string(prefix)))
-    return quote
+    #return quote
+    @eval begin
         abstract $pbase <: super($base)
         const $pinst = UnitDef{$pbase}(
             string($pbase),
-            string(prefix_short_forms[$prefix], $base),
+            string(prefix_short_forms[$prefix], $binst.abbrev),
             $pcons * $binst.ref,
             $binst.dim,
         )
