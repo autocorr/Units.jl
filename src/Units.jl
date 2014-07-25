@@ -343,26 +343,31 @@ end
 @add_prefix(Kilo, Gram)
 @add_prefix(Femto, Parsec)
 
-SiUnit = begin
-    tl = [Meter, KiloGram, Second]  # FIXME
-    tl = [Type{T} for T in tl]
-    Union(tl...)
+# FIXME add all units for each system
+SiUnit = [Meter, KiloGram, Second] |>
+         x -> [Type{T} for T in x] |>
+         x -> Union(x...)
+
+CgsUnit = [CentiMeter, Gram, Second] |>
+          x -> [Type{T} for T in x] |>
+          x -> Union(x...)
+
+
+# Append prefixes to all concrete units.
+# FIXME Meta-meta programming, ugly, but until a better way
+# is figured out, necessary, because abstracts, exports, and evals
+# have to be in the module's top level.
+function gen_prefixes()
+    open("PrefixUnits.jl", "w") do filen
+        write(filen, "module PrefixUnits\n\n")
+        write(filen, "import Units: @add_prefix\n\n")
+        for prefix=subtypes(Prefix), base=ConcreteUnit.types
+            base = base.parameters[1]
+            write(filen, "@add_prefix($prefix, $base)\n")
+        end
+        write(filen, "\nend\n")
+    end
 end
-
-CgsUnit = begin
-    tl = [CentiMeter, Gram, Second]  # FIXME
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
-
-
-# Append prefixes to all concrete units
-# FIXME doesn't work because of declaring a type inside a local scope
-# such as this `for` loop
-#for prefix=subtypes(Prefix), base=ConcreteUnit.types
-#    base = base.parameters[1]
-#    @add_prefix(prefix, base)
-#end
 
 
 ##############################################################################
