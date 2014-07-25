@@ -220,21 +220,19 @@ typealias MagneticFieldStrength MagneticFluxDensity
 # TODO
 # in order for these to work with user defined types, they will have to do:
 #     > BaseUnit = Union(BaseUnit, Type{Foo})
-BaseUnit = begin
-    tl = [Type{T} for T in subtypes(Unit)]
-    Union(tl...)
-end
+BaseUnit = subtypes(Unit) |>
+    x -> [Type{T} for T in x] |>
+    x -> Union(x...)
 
-AbstractUnit = begin
-    tl = [Type{T} for T in subtypes(DerivedUnit)]
-    Union(BaseUnit, tl...)
-end
+AbstractUnit = subtypes(DerivedUnit) |>
+    x -> [Type{T} for T in x] |>
+    x -> Union(BaseUnit, x...)
 
-ConcreteUnit = begin
-    tl = vcat([subtypes(D) for D in subtypes(Unit)]...)
-    tl = [Type{T} for T in tl]
-    Union(tl...)
-end
+ConcreteUnit = subtypes(Unit) |>
+    x -> [subtypes(D) for D in x] |>
+    x -> vcat(x...) |>
+    x -> [Type{T} for T in x] |>
+    x -> Union(x...)
 
 
 ##############################################################################
@@ -345,12 +343,12 @@ end
 
 # FIXME add all units for each system
 SiUnit = [Meter, KiloGram, Second] |>
-         x -> [Type{T} for T in x] |>
-         x -> Union(x...)
+    x -> [Type{T} for T in x] |>
+    x -> Union(x...)
 
 CgsUnit = [CentiMeter, Gram, Second] |>
-          x -> [Type{T} for T in x] |>
-          x -> Union(x...)
+    x -> [Type{T} for T in x] |>
+    x -> Union(x...)
 
 
 # Append prefixes to all concrete units.
