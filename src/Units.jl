@@ -75,6 +75,7 @@ type Composite
         new(mag, quants)
     end
 end
+Composite(mag::Number, quants::AbstractArray{None, 1}) = mag
 Composite(s::String) = eval(parse(s))::Composite
 
 
@@ -345,10 +346,20 @@ end
 SiUnit = [Meter, KiloGram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
+si = {
+    Length => meter,
+    Mass => kilogram,
+    Time => second,
+}
 
 CgsUnit = [CentiMeter, Gram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
+cgs = {
+    Length => centimeter,
+    Mass => gram,
+    Time => second,
+}
 
 
 # Append prefixes to all concrete units.
@@ -408,6 +419,9 @@ function check_compatible(x::Quantity, y::Quantity)
     check_dim(x, y)
     check_order(x, y)
 end
+function check_compatible(x::Composite, y::Composite)
+    check_dim(x, y)
+end
 
 # Unit conversion from `x` to unit `y` for units of compatible type.
 function to(x::Quantity, y::Quantity)
@@ -421,13 +435,22 @@ end
 
 
 # Reduce a composite quantity to the lowest dimensions
-function reduce(c::Composite)
-    for q in c.quants
-        # FIXME
-        # Group into same base
-        # Perform conversion and multiplication for each quantity in base
-        # Reassign quantities
+# usys::Dict -> unit system dictionary, default `si`
+function reduce(c::Composite; usys::Dict=si)
+    bases = unique([q.base for q in c.quants])
+    mag = c.mag
+    new_quants = Quantity[]
+    for base in bases
+        println(base)
+        sys_unit = usys[base]
+        base_quants = filter(q -> q.base == base, c.quants)
+        mag *= prod([q.unit.ref^q.ord for q in base_quants])
+        ord = sum([q.ord for q in base_quants])
+        if ord != 0
+            push!(new_quants, Quantity(sys_unit, ord))
+        end
     end
+    Composite(mag, new_quants)
 end
 
 
@@ -562,11 +585,11 @@ show(io::IO, u::UnitDef) = print(io, u.name)
 showcompact(io::IO, u::UnitDef) = print(io, u.abbrev)
 
 function show(io::IO, q::Quantity)
-    print(io, "$(q.mag) $(q.unit.name)$(pretty_order(q.ord))")
+    print(io, "$(q.unit.name)$(pretty_order(q.ord))")
 end
 
 function showcompact(io::IO, q::Quantity)
-    print(io, "$(q.mag) $(q.unit.abbrev)$(pretty_order(q.ord))")
+    print(io, "$(q.unit.abbrev)$(pretty_order(q.ord))")
 end
 
 function show(io::IO, c::Composite)
