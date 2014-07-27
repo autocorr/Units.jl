@@ -8,8 +8,7 @@ different `cgs` sub-systems. I started this project to explore Julia.  Other
 active projects that support unit analysis in Julia include
 [Physical.jl](https://github.com/ggggggggg/Physical.jl) and
 [SIUnits.jl](https://github.com/Keno/SIUnits.jl). The API is modelled after
-Python's [Pint](https://github.com/hgrecco/pint) and the
-[Astropy](https://github.com/astropy/astropy) `units` sub-module.
+Python's [Astropy](https://github.com/astropy/astropy) `units` sub-module.
 
 
 Installing

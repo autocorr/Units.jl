@@ -14,11 +14,13 @@ module Units
 # * Full type coverage in `Composite` string parsing
 # * Add all units
 # * Parse CODATA
+# * Array operators
+# * Compose units to derived unit forms
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
 import Base: show, showcompact, copy
-import Base: convert, promote_rule, promote, reduce
+import Base: convert, promote_rule, promote
 
 
 ##############################################################################
@@ -476,9 +478,9 @@ function to(x::Composite, y::Composite)
     # FIXME
 end
 
-# Reduce a composite quantity to the lowest dimensions
+# Decompose a composite quantity to the lowest dimensions
 # usys::Dict -> unit system dictionary, default `si`
-function reduce(c::Composite; usys::Dict=si)
+function decompose(c::Composite; usys::Dict=si)
     bases = unique([q.base for q in c.quants])
     mag = c.mag
     new_quants = Quantity[]
@@ -495,10 +497,10 @@ function reduce(c::Composite; usys::Dict=si)
 end
 
 
-# Reduce a composite quantity to the canonical units
+# Decompose a composite quantity to the canonical units
 # of the unit system.
 # usys::Dict -> unit system dictionary, default `si`
-function sys_reduce(c::Composite; usys::Dict=si)
+function sys_decompose(c::Composite; usys::Dict=si)
     mag = c.mag
     dim = dimensionless
     new_quants = Quantity[]
@@ -524,8 +526,8 @@ end
 # Binary addition operator. Returned in units of the first argument.
 function +(x::Composite, y::Composite)
     check_dim(x, y)
-    x = reduce(x)
-    y = reduce(y)
+    x = decompose(x)
+    y = decompose(y)
     Composite(x.mag + y.mag, x.quants)
 end
 
