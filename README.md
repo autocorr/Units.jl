@@ -1,13 +1,15 @@
 Units.jl
 ========
-Manipulate units and physical quantities in Julia. `Units.jl` uses the type
-system for performant execution while permitting flexible user-defined unit
-definitions. Future functionality aims to include `mks` and `cgs` units,
-constants, dimensional analysis, and electromagnetic units in different `cgs`
-systems. I started this project to help teach myself Julia; other active
-projects that support unit analysis in Julia include
+Algebraically manipulate units and physical quantities in Julia. `Units.jl`
+uses the type system for logical unit system hierarchies, unit conversion, and
+flexible user-defined units. Future functionality aims to include `mks` and
+`cgs` units, constants, dimensional analysis, and electromagnetic units in
+different `cgs` sub-systems. I started this project to explore Julia.  Other
+active projects that support unit analysis in Julia include
 [Physical.jl](https://github.com/ggggggggg/Physical.jl) and
-[SIUnits.jl](https://github.com/Keno/SIUnits.jl).
+[SIUnits.jl](https://github.com/Keno/SIUnits.jl). The API is modelled after
+Python's [Pint](https://github.com/hgrecco/pint) and the
+[Astropy](https://github.com/astropy/astropy) `units` sub-module.
 
 
 Installing
@@ -30,14 +32,14 @@ has been implemented. Example usage of `Units.jl` includes:
 
 ```julia
 julia> import Units; u = Units;
-julia> q = 2 * u.meter^(1//2)
-2 meter^¹/₂
-julia> q.<tab>
+julia> c = 2 * u.meter^(1//2) / u.second
+2 Meter^¹/₂ Second^-1
+julia> c.<tab>
 base dim   mag   ord   unit
-julia> (q.base, q.unit)
+julia> (c.base, q.unit)
 (Length,Meter)
-julia> q.dim
-Dimension(d=1, m=0, t=0,  i=0, θ=0, n=0, j=0)
+julia> c.dim
+Dimension(d=1//2, m=0, t=-1,  i=0, θ=0, n=0, j=0)
 ```
 
 
