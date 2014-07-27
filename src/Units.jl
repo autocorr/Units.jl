@@ -76,7 +76,11 @@ type Composite
     end
 end
 Composite(mag::Number, quants::AbstractArray{None, 1}) = mag
-Composite(s::String) = eval(parse(s))::Composite
+Composite(quants::AbstractArray{Quantity, 1}) = Composite(1, quants)
+Composite(q::Quantity) = [q] |> Composite
+Composite(u::UnitDef) = u |> Quantity |> Composite
+Composite(c::Composite) = c
+Composite(s::String) = s |> parse |> eval |> Composite
 
 
 UnitContainer = Union(UnitDef, Quantity, Composite)
@@ -123,7 +127,7 @@ abstract ElectricCurrent <: Unit
 abstract Ampere <: ElectricCurrent
 
 abstract AmountOfSubstance <: Unit
-abstract Mol <: AmountOfSubstance
+abstract Mole <: AmountOfSubstance
 
 abstract LuminousIntensity <: Unit
 abstract Candela <: LuminousIntensity
@@ -308,18 +312,30 @@ prefix_short_forms = [
 
 
 # Length
-const length_dim = Dimension(1,0,0,0,0,0,0)
-const meter = UnitDef{Meter}("Meter", "m", 1, length_dim)
-const au = UnitDef{AU}("AU", "au", 2, length_dim)
-const parsec = UnitDef{Parsec}("Parsec", "pc", 3, length_dim)
+const l_dim = Dimension(1,0,0,0,0,0,0)
+const meter = UnitDef{Meter}("Meter", "m", 1, l_dim)
+const au = UnitDef{AU}("AU", "au", 2, l_dim)
+const parsec = UnitDef{Parsec}("Parsec", "pc", 3, l_dim)
 # Mass
-const mass_dim = Dimension(0,1,0,0,0,0,0)
-const gram = UnitDef{Gram}("Gram", "g", 1, mass_dim)
-const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, mass_dim)
+const m_dim = Dimension(0,1,0,0,0,0,0)
+const gram = UnitDef{Gram}("Gram", "g", 1e-3, m_dim)
+const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, m_dim)
 # Time
-const time_dim = Dimension(0,0,1,0,0,0,0)
-const second = UnitDef{Second}("Second", "s", 1, time_dim)
-const year = UnitDef{Year}("Year", "yr", 2, time_dim)
+const t_dim = Dimension(0,0,1,0,0,0,0)
+const second = UnitDef{Second}("Second", "s", 1, t_dim)
+const year = UnitDef{Year}("Year", "yr", 2, t_dim)
+# Temperature
+const i_dim = Dimension(0,0,0,1,0,0,0)
+const kelvin = UnitDef{Kelvin}("Kelvin", "K", 1, i_dim)
+# ElectricCurrent
+const θ_dim = Dimension(0,0,0,0,1,0,0)
+const ampere = UnitDef{Ampere}("Ampere", "A", 1, θ_dim)
+# AmountOfSubstance
+const n_dim = Dimension(0,0,0,0,0,1,0)
+const mole = UnitDef{Mole}("Mole", "mol", 1, n_dim)
+# LuminousIntensity
+const j_dim = Dimension(0,0,0,0,0,0,1)
+const candela = UnitDef{Candela}("Candela", "cd", 1, j_dim)
 
 
 macro add_prefix(prefix, base)
@@ -350,6 +366,10 @@ si = {
     Length => meter,
     Mass => kilogram,
     Time => second,
+    Temperature => kelvin,
+    ElectricCurrent => ampere,
+    AmountOfSubstance => mole,
+    LuminousIntensity => candela,
 }
 
 CgsUnit = [CentiMeter, Gram, Second] |>
@@ -384,11 +404,16 @@ end
 ##############################################################################
 
 convert{U}(::Type{Quantity}, x::UnitDef{U}) = Quantity(x)
-convert(::Type{Composite}, x::Quantity) = Composite([x])
+convert{U}(::Type{Composite}, x::UnitDef{U}) = Composite(x)
+convert(::Type{Composite}, x::Quantity) = Composite(x)
 
 promote_rule{U}(::Type{UnitDef{U}}, ::Type{Quantity}) = Quantity
 promote_rule(::Type{Quantity}, ::Type{Composite}) = Composite
 
+
+get_dim(u::UnitDef) = u.dim
+get_dim(q::Quantity) = q.dim
+get_dim(x::Composite) = sum([q.dim for q in x.quants])
 
 function check_base(x::Quantity, y::Quantity)
     if !is(x.base, y.base)
@@ -402,8 +427,8 @@ function check_dim(x::Quantity, y::Quantity)
     end
 end
 function check_dim(x::Composite, y::Composite)
-    xdim = sum([q.dim for q in x.quants])
-    ydim = sum([q.dim for q in y.quants])
+    xdim = get_dim(x)
+    ydim = get_dim(y)
     if xdim != ydim
         throw(UnitError("$(xdim) != $(ydim) : Dimensions must be compatible."))
     end
@@ -426,13 +451,15 @@ end
 # Unit conversion from `x` to unit `y` for units of compatible type.
 function to(x::Quantity, y::Quantity)
     check_compatible(x, y)
-    Quantity(x.mag * y.mag * (y.unit.ref / x.unit.ref),
-             y.unit, y.ord)
+    Composite((y.unit.ref / x.unit.ref)^y.ord, [Quantity(y.unit, y.ord)])
 end
 function to(x::Composite, y::Composite)
+    check_compatible(x, y)
+    for q in x.quants
+        nothing
+    end
     # FIXME
 end
-
 
 # Reduce a composite quantity to the lowest dimensions
 # usys::Dict -> unit system dictionary, default `si`
@@ -441,7 +468,6 @@ function reduce(c::Composite; usys::Dict=si)
     mag = c.mag
     new_quants = Quantity[]
     for base in bases
-        println(base)
         sys_unit = usys[base]
         base_quants = filter(q -> q.base == base, c.quants)
         mag *= prod([q.unit.ref^q.ord for q in base_quants])
@@ -454,23 +480,48 @@ function reduce(c::Composite; usys::Dict=si)
 end
 
 
+# Reduce a composite quantity to the canonical units
+# of the unit system.
+# usys::Dict -> unit system dictionary, default `si`
+function sys_reduce(c::Composite; usys::Dict=si)
+    mag = c.mag
+    dim = dimensionless
+    new_quants = Quantity[]
+    for q in c.quants
+        mag *= q.unit.ref^q.ord
+        dim += q.dim
+    end
+    bases = [Length, Mass, Time, Temperature, ElectricCurrent,
+        AmountOfSubstance, LuminousIntensity]
+    for (b, d) in zip(bases, dim.data)
+        if d != 0
+            push!(new_quants, Quantity(usys[b], d))
+        end
+    end
+    Composite(mag, new_quants)
+end
+
+
 ##############################################################################
 # Operators
 ##############################################################################
 
 # Binary addition operator. Returned in units of the first argument.
-function +(x::Quantity, y::Quantity)
-    Quantity(x.mag + to(x, y).mag, x.unit, x.ord)
-end
 function +(x::Composite, y::Composite)
     check_dim(x, y)
     x = reduce(x)
     y = reduce(y)
-    # FIXME
+    Composite(x.mag + y.mag, x.quants)
 end
 
+# Unary subtraction operator
+-(x::UnitDef) = Composite(-1, [x])
+-(x::Composite) = Composite(-x.mag, x.quants)
+
 # Binary subtraction operator.
--(x::Quantity, y::Quantity) = x + (-1 * y)
+function -(x::Composite, y::Composite)
+    x + Composite(-y.mag, y.quants)
+end
 
 # Binary multiplication operator.
 *(x::ConcreteUnit, y::Number) = Quantity(y, x)
@@ -523,9 +574,11 @@ end
 +(x::Dimension, y::Dimension) = Dimension((x.data .+ y.data)...)
 -(x::Dimension, y::Dimension) = Dimension((x.data .- y.data)...)
 *(x::Dimension, y::Dimension) = Dimension((x.data .* y.data)...)
+^(x::Dimension, y::Integer) = Dimension(x.data .^ y)
+^(x::Dimension, y::Number) = Dimension(x.data .^ y)
 /(x::Dimension, y::Dimension) = Dimension((x.data ./ y.data)...)
-==(x::Dimension, y::Dimension) = x.data .== y.data
-!=(x::Dimension, y::Dimension) = x.data .!= y.data
+==(x::Dimension, y::Dimension) = all(x.data .== y.data)
+!=(x::Dimension, y::Dimension) = any(x.data .!= y.data)
 
 
 ##############################################################################
