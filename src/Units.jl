@@ -1,10 +1,4 @@
 module Units
-### TODO
-# * Macro to make typealias for SI prefixes
-# * Composite quantities
-# * Convert function for composite
-# * Reduce function
-# * Generate prefixed units in a seperate file and use on import with function
 ### Sections
 # * Container Types
 # * Exceptions
@@ -13,10 +7,17 @@ module Units
 # * Conversion
 # * Operators
 # * Printing
+### TODO
+# * Filter units if put to zero-order
+# * `to` function for `Composite`
+# * Unit system based `to` method
+# * Full type coverage in `Composite` string parsing
+# * Add all units
+# * Parse CODATA
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
-import Base: show, showcompact
+import Base: show, showcompact, copy
 import Base: convert, promote_rule, promote, reduce
 
 
@@ -79,6 +80,8 @@ Composite(mag::Number, quants::AbstractArray{None, 1}) = mag
 Composite(quants::AbstractArray{Quantity, 1}) = Composite(1, quants)
 Composite(q::Quantity) = [q] |> Composite
 Composite(u::UnitDef) = u |> Quantity |> Composite
+Composite(mag::Number, u::UnitDef) = Composite(mag, [Quantity(u)])
+Composite(mag::Number, c::Composite) = Composite(mag, c.quants)
 Composite(c::Composite) = c
 Composite(s::String) = s |> parse |> eval |> Composite
 
@@ -125,6 +128,7 @@ abstract Kelvin <: Temperature
 
 abstract ElectricCurrent <: Unit
 abstract Ampere <: ElectricCurrent
+abstract StatAmpere <: ElectricCurrent
 
 abstract AmountOfSubstance <: Unit
 abstract Mole <: AmountOfSubstance
@@ -135,6 +139,10 @@ abstract Candela <: LuminousIntensity
 # Derived units
 abstract Angle <: DerivedUnit
 abstract Radian <: Angle
+abstract ArcSecond <: Angle
+abstract ArcMinute <: Angle
+abstract ArcHour <: Angle
+abstract Degree <: Angle
 
 abstract SolidAngle <: DerivedUnit
 abstract Steradian <: SolidAngle
@@ -324,12 +332,13 @@ const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, m_dim)
 const t_dim = Dimension(0,0,1,0,0,0,0)
 const second = UnitDef{Second}("Second", "s", 1, t_dim)
 const year = UnitDef{Year}("Year", "yr", 2, t_dim)
-# Temperature
-const i_dim = Dimension(0,0,0,1,0,0,0)
-const kelvin = UnitDef{Kelvin}("Kelvin", "K", 1, i_dim)
 # ElectricCurrent
+const i_dim = Dimension(0,0,0,1,0,0,0)
+const ampere = UnitDef{Ampere}("Ampere", "A", 1, i_dim)
+const statampere = UnitDef{StatAmpere}("StatAmpere", "statA", 1, i_dim)
+# Temperature
 const θ_dim = Dimension(0,0,0,0,1,0,0)
-const ampere = UnitDef{Ampere}("Ampere", "A", 1, θ_dim)
+const kelvin = UnitDef{Kelvin}("Kelvin", "K", 1, θ_dim)
 # AmountOfSubstance
 const n_dim = Dimension(0,0,0,0,0,1,0)
 const mole = UnitDef{Mole}("Mole", "mol", 1, n_dim)
@@ -379,6 +388,10 @@ cgs = {
     Length => centimeter,
     Mass => gram,
     Time => second,
+    Temperature => kelvin,
+    ElectricCurrent => statampere,
+    AmountOfSubstance => mole,
+    LuminousIntensity => candela,
 }
 
 
@@ -408,8 +421,10 @@ convert{U}(::Type{Composite}, x::UnitDef{U}) = Composite(x)
 convert(::Type{Composite}, x::Quantity) = Composite(x)
 
 promote_rule{U}(::Type{UnitDef{U}}, ::Type{Quantity}) = Quantity
+promote_rule{U}(::Type{UnitDef{U}}, ::Type{Composite}) = Composite
 promote_rule(::Type{Quantity}, ::Type{Composite}) = Composite
 
+copy(c::Composite) = Composite(copy(c.mag), copy(c.quants))
 
 get_dim(u::UnitDef) = u.dim
 get_dim(q::Quantity) = q.dim
@@ -515,7 +530,7 @@ function +(x::Composite, y::Composite)
 end
 
 # Unary subtraction operator
--(x::UnitDef) = Composite(-1, [x])
+-{U}(x::UnitDef{U}) = Composite(-1, [x])
 -(x::Composite) = Composite(-x.mag, x.quants)
 
 # Binary subtraction operator.
@@ -524,49 +539,74 @@ function -(x::Composite, y::Composite)
 end
 
 # Binary multiplication operator.
-*(x::ConcreteUnit, y::Number) = Quantity(y, x)
-*(x::Number, y::ConcreteUnit) = y * x
-*(x::Number, y::Quantity) = Quantity(x * y.mag, y.unit, y.ord)
-*(x::Quantity, y::Number) = Quantity(x.mag * y, x.unit, x.ord)
-function *(x::Quantity, y::Quantity)
-    if x.base == y.base
-        Quantity(x.mag * y.mag * convert(x, y).mag, x.unit, x.ord + x.ord)
-    else
-        Composite([x, y])
+*{U}(x::UnitDef{U}, y::Number) = Composite(y, x)
+*{U}(x::Number, y::UnitDef{U}) = Composite(x, y)
+*(x::Composite, y::Number) = Composite(y * x.mag, x.quants)
+*(x::Number, y::Composite) = y * x
+function *(x::Composite, y::Composite)
+    x = copy(x)
+    y = copy(y)
+    xlen = length(x.quants)
+    mag = x.mag * y.mag
+    while length(y.quants) != 0
+        yq = pop!(y.quants)
+        for ii=[1:xlen]
+            if x.quants[ii].unit == yq.unit
+                insert!(x.quants, ii, Quantity(xq.unit, xq.ord + yq.ord))
+                break
+            else
+                push!(x.quants, yq)
+            end
+        end
     end
+    Composite(mag, x.quants)
 end
-function *(x::Quantity, y::Composite)
-    append!(y.quants, [x])
-end
-*(x::Composite, y::Quantity) = y * x
 
 # Binary division operator.
-/(x::ConcreteUnit, y::Number) = Quantity(1 / y, x)
-/(x::Number, y::ConcreteUnit) = Quantity(x, y, -1)
-/(x::Number, y::Quantity) = Quantity(x / y.mag, y.unit, -1 * y.ord)
-/(x::Quantity, y::Number) = x * (1 / y)
-function /(x::Quantity, y::Quantity)
-    if x.base == y.base
-        Quantity(x.mag / y.mag * convert(x, y).mag, x.unit, x.ord - y.ord)
-    else
-        Composite([x, 1 / y])
-    end
+/{U}(x::UnitDef{U}, y::Number) = Composite(inv(y), x)
+/{U}(x::Number, y::UnitDef{U}) = Composite(x, [Quantity(y, -1)])
+/(x::Composite, y::Number) = Composite(x.mag / y, x.quants)
+function /(x::Number, y::Composite)
+    y = Composite(x * inv(y.mag), [Quantity(q.unit, -q.ord) for q in y.quants])
 end
-/(x::Quantity, y::ConcreteUnit) = x / (1 * y)
-/(x::ConcreteUnit, y::Quantity) = (1 * x) / y
+function /(x::Composite, y::Composite)
+    y = copy(y)
+    y = Composite(y.mag, [Quantity(q.unit, -q.ord) for q in y.quants])
+    x * y
+end
 
 # Binary exponentiation operator.
-^(x::ConcreteUnit, y::Number) = Quantity(1, x, y)
-# Add integer to avoid method ambiguity with ^(::Any, ::Integer)
-^(x::Quantity, y::Integer) = Quantity(x.mag^y, x.unit, x.ord * y)
-^(x::Quantity, y::Number) = Quantity(x.mag^y, x.unit, x.ord * y)
+# Add `Integer` method to avoid method ambiguity with ^(::Any, ::Integer)
+^{U}(x::UnitDef{U}, y::Integer) = x^Rational(y)
+^{U}(x::UnitDef{U}, y::Number) = Composite(1, [Quantity(x, y)])
+^(x::Quantity, y::Integer) = x^Rational(y)
+^(x::Quantity, y::Number) = Quantity(x.unit, x.ord * y)
+^(x::Composite, y::Integer) = x^Rational(y)
+function ^(x::Composite, y::Number)
+    x = copy(x)
+    mag = x.mag^y
+    new_quants = [Quantity(q.unit, q.ord * y) for q in x.quants]
+    Composite(mag, new_quants)
+end
 
 
-# Catch-all
-+(x::UnitContainer, y::UnitContainer) = +(promote(x, y)...)
--(x::UnitContainer, y::UnitContainer) = -(promote(x, y)...)
-*(x::UnitContainer, y::UnitContainer) = *(promote(x, y)...)
-/(x::UnitContainer, y::UnitContainer) = /(promote(x, y)...)
+# Catch-all, force conversion to Composite
+function +(x::UnitContainer, y::UnitContainer)
+    x, y, _ = promote(x, y, Composite(meter))
+    +(promote(x, y)...)
+end
+function -(x::UnitContainer, y::UnitContainer)
+    x, y, _ = promote(x, y, Composite(meter))
+    -(promote(x, y)...)
+end
+function *(x::UnitContainer, y::UnitContainer)
+    x, y, _ = promote(x, y, Composite(meter))
+    *(promote(x, y)...)
+end
+function /(x::UnitContainer, y::UnitContainer)
+    x, y, _ = promote(x, y, Composite(meter))
+    /(promote(x, y)...)
+end
 
 
 # Dimension
