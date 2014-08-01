@@ -468,9 +468,7 @@ function check_compatible(x::Quantity, y::Quantity)
     check_dim(x, y)
     check_order(x, y)
 end
-function check_compatible(x::Composite, y::Composite)
-    check_dim(x, y)
-end
+check_compatible(x::Composite, y::Composite) = check_dim(x, y)
 
 # Unit conversion from `x` to unit `y` for units of compatible type.
 function to(x::Quantity, y::Quantity)
@@ -479,10 +477,10 @@ function to(x::Quantity, y::Quantity)
 end
 function to(x::Composite, y::Composite)
     check_compatible(x, y)
-    for q in x.quants
-        nothing
-    end
     # FIXME
+    xs = sys_decompose(x)
+    ys = sys_decompose(y)
+    Composite(xs.mag / ys.mag, y.quants)
 end
 
 # Decompose a composite quantity to the lowest dimensions
