@@ -70,7 +70,7 @@ immutable Quantity
     dim::Dimension
 
     function Quantity(unit::UnitDef, ord::Number)
-        dim = Dimension((unit.dim.data .* ord)...)
+        dim = unit.dim * ord
         new(unit, ord, super(unit.utype), dim)
     end
 end
@@ -619,17 +619,24 @@ end
 
 
 # Dimension
-convert() = Dimension((dimensionless.data .+ y)...)
+convert{T<:Number}(::Type{Dimension}, x::T) = Dimension((dimensionless.data .+ x)...)
+promote_rule{T<:Number}(::Type{Dimension}, ::Type{T}) = Dimension
+
 -(x::Dimension) = Dimension((-x.data)...)
 +(x::Dimension, y::Dimension) = Dimension((x.data .+ y.data)...)
 -(x::Dimension, y::Dimension) = Dimension((x.data .- y.data)...)
-*(x::Dimension, y::Number) = Dimension((x.data .* y)...)
 *(x::Dimension, y::Dimension) = Dimension((x.data .* y.data)...)
+/(x::Dimension, y::Dimension) = Dimension((x.data ./ y.data)...)
 ^(x::Dimension, y::Integer) = Dimension(x.data .^ y)
 ^(x::Dimension, y::Number) = Dimension(x.data .^ y)
-/(x::Dimension, y::Dimension) = Dimension((x.data ./ y.data)...)
 ==(x::Dimension, y::Dimension) = all(x.data .== y.data)
 !=(x::Dimension, y::Dimension) = any(x.data .!= y.data)
+
+NumberOrDim = Union(Dimension, Number)
++(x::NumberOrDim, y::NumberOrDim) = +(promote(x, y)...)
+-(x::NumberOrDim, y::NumberOrDim) = -(promote(x, y)...)
+*(x::NumberOrDim, y::NumberOrDim) = *(promote(x, y)...)
+/(x::NumberOrDim, y::NumberOrDim) = /(promote(x, y)...)
 
 
 ##############################################################################
