@@ -46,28 +46,35 @@ Dimension(data::AbstractArray) = Dimension(data...)
 const dimensionless = Dimension()
 
 
-immutable UnitDef{U}  # FIXME more rigorous type defintion
+immutable UnitDef
+    utype::Type
     name::String
     abbrev::String
     ref::Number
     dim::Dimension
+
+    function UnitDef(utype::Type, abbrev::String,
+                     ref::Number, dim::Dimension)
+        new(utype, string(utype), abbrev, ref, dim)
+    end
 end
-UnitDef(name, ref, dim) = UnitDef(name, name, ref, dim)
+function UnitDef(utype::Type, ref::Number, dim::Dimension)
+    UnitDef(utype, string(utype), ref, dim)
+end
 
 
 immutable Quantity
     unit::UnitDef
-    utype::Type
     ord::Number
     base::Type
     dim::Dimension
 
-    function Quantity{U}(unit::UnitDef{U}, ord::Number)
+    function Quantity(unit::UnitDef, ord::Number)
         dim = Dimension((unit.dim.data .* ord)...)
-        new(unit, U, ord, super(U), dim)
+        new(unit, ord, super(unit.utype), dim)
     end
 end
-Quantity{U}(unit::UnitDef{U}) = Quantity(unit, 1//1)
+Quantity(unit::UnitDef) = Quantity(unit, 1//1)
 
 
 type Composite
@@ -323,30 +330,30 @@ prefix_short_forms = [
 
 # Length
 const l_dim = Dimension(1,0,0,0,0,0,0)
-const meter = UnitDef{Meter}("Meter", "m", 1, l_dim)
-const au = UnitDef{AU}("AU", "au", 2, l_dim)
-const parsec = UnitDef{Parsec}("Parsec", "pc", 3, l_dim)
+const meter = UnitDef(Meter, "m", 1, l_dim)
+const au = UnitDef(AU, "au", 2, l_dim)
+const parsec = UnitDef(Parsec, "pc", 3, l_dim)
 # Mass
 const m_dim = Dimension(0,1,0,0,0,0,0)
-const gram = UnitDef{Gram}("Gram", "g", 1e-3, m_dim)
-const solarmass = UnitDef{SolarMass}("SolarMass", "Msun", 2, m_dim)
+const gram = UnitDef(Gram, "g", 1e-3, m_dim)
+const solarmass = UnitDef(SolarMass, "Msun", 2, m_dim)
 # Time
 const t_dim = Dimension(0,0,1,0,0,0,0)
-const second = UnitDef{Second}("Second", "s", 1, t_dim)
-const year = UnitDef{Year}("Year", "yr", 2, t_dim)
+const second = UnitDef(Second, "s", 1, t_dim)
+const year = UnitDef(Year, "yr", 2, t_dim)
 # ElectricCurrent
 const i_dim = Dimension(0,0,0,1,0,0,0)
-const ampere = UnitDef{Ampere}("Ampere", "A", 1, i_dim)
-const statampere = UnitDef{StatAmpere}("StatAmpere", "statA", 1, i_dim)
+const ampere = UnitDef(Ampere, "A", 1, i_dim)
+const statampere = UnitDef(StatAmpere, "statA", 1, i_dim)
 # Temperature
 const θ_dim = Dimension(0,0,0,0,1,0,0)
-const kelvin = UnitDef{Kelvin}("Kelvin", "K", 1, θ_dim)
+const kelvin = UnitDef(Kelvin, "K", 1, θ_dim)
 # AmountOfSubstance
 const n_dim = Dimension(0,0,0,0,0,1,0)
-const mole = UnitDef{Mole}("Mole", "mol", 1, n_dim)
+const mole = UnitDef(Mole, "mol", 1, n_dim)
 # LuminousIntensity
 const j_dim = Dimension(0,0,0,0,0,0,1)
-const candela = UnitDef{Candela}("Candela", "cd", 1, j_dim)
+const candela = UnitDef(Candela, "cd", 1, j_dim)
 
 
 macro add_prefix(prefix, base)
@@ -357,8 +364,8 @@ macro add_prefix(prefix, base)
     #return quote
     @eval begin
         abstract $pbase <: super($base)
-        const $pinst = UnitDef{$pbase}(
-            string($pbase),
+        const $pinst = UnitDef(
+            $pbase,
             string(prefix_short_forms[$prefix], $binst.abbrev),
             $pcons * $binst.ref,
             $binst.dim,
@@ -418,12 +425,12 @@ end
 # Conversion
 ##############################################################################
 
-convert{U}(::Type{Quantity}, x::UnitDef{U}) = Quantity(x)
-convert{U}(::Type{Composite}, x::UnitDef{U}) = Composite(x)
+convert(::Type{Quantity}, x::UnitDef) = Quantity(x)
+convert(::Type{Composite}, x::UnitDef) = Composite(x)
 convert(::Type{Composite}, x::Quantity) = Composite(x)
 
-promote_rule{U}(::Type{UnitDef{U}}, ::Type{Quantity}) = Quantity
-promote_rule{U}(::Type{UnitDef{U}}, ::Type{Composite}) = Composite
+promote_rule(::Type{UnitDef}, ::Type{Quantity}) = Quantity
+promote_rule(::Type{UnitDef}, ::Type{Composite}) = Composite
 promote_rule(::Type{Quantity}, ::Type{Composite}) = Composite
 
 copy(c::Composite) = Composite(copy(c.mag), copy(c.quants))
@@ -532,7 +539,7 @@ function +(x::Composite, y::Composite)
 end
 
 # Unary subtraction operator
--{U}(x::UnitDef{U}) = Composite(-1, [x])
+-(x::UnitDef) = Composite(-1, [x])
 -(x::Composite) = Composite(-x.mag, x.quants)
 
 # Binary subtraction operator.
@@ -541,8 +548,8 @@ function -(x::Composite, y::Composite)
 end
 
 # Binary multiplication operator.
-*{U}(x::UnitDef{U}, y::Number) = Composite(y, x)
-*{U}(x::Number, y::UnitDef{U}) = Composite(x, y)
+*(x::UnitDef, y::Number) = Composite(y, x)
+*(x::Number, y::UnitDef) = Composite(x, y)
 *(x::Composite, y::Number) = Composite(y * x.mag, x.quants)
 *(x::Number, y::Composite) = y * x
 function *(x::Composite, y::Composite)
@@ -565,8 +572,8 @@ function *(x::Composite, y::Composite)
 end
 
 # Binary division operator.
-/{U}(x::UnitDef{U}, y::Number) = Composite(inv(y), x)
-/{U}(x::Number, y::UnitDef{U}) = Composite(x, [Quantity(y, -1)])
+/(x::UnitDef, y::Number) = Composite(inv(y), x)
+/(x::Number, y::UnitDef) = Composite(x, [Quantity(y, -1)])
 /(x::Composite, y::Number) = Composite(x.mag / y, x.quants)
 function /(x::Number, y::Composite)
     y = Composite(x * inv(y.mag), [Quantity(q.unit, -q.ord) for q in y.quants])
@@ -579,8 +586,8 @@ end
 
 # Binary exponentiation operator.
 # Add `Integer` method to avoid method ambiguity with ^(::Any, ::Integer)
-^{U}(x::UnitDef{U}, y::Integer) = x^Rational(y)
-^{U}(x::UnitDef{U}, y::Number) = Composite(1, [Quantity(x, y)])
+^(x::UnitDef, y::Integer) = x^Rational(y)
+^(x::UnitDef, y::Number) = Composite(1, [Quantity(x, y)])
 ^(x::Quantity, y::Integer) = x^Rational(y)
 ^(x::Quantity, y::Number) = Quantity(x.unit, x.ord * y)
 ^(x::Composite, y::Integer) = x^Rational(y)
@@ -612,9 +619,11 @@ end
 
 
 # Dimension
+convert() = Dimension((dimensionless.data .+ y)...)
 -(x::Dimension) = Dimension((-x.data)...)
 +(x::Dimension, y::Dimension) = Dimension((x.data .+ y.data)...)
 -(x::Dimension, y::Dimension) = Dimension((x.data .- y.data)...)
+*(x::Dimension, y::Number) = Dimension((x.data .* y)...)
 *(x::Dimension, y::Dimension) = Dimension((x.data .* y.data)...)
 ^(x::Dimension, y::Integer) = Dimension(x.data .^ y)
 ^(x::Dimension, y::Number) = Dimension(x.data .^ y)
