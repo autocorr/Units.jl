@@ -8,14 +8,13 @@ module Units
 # * Operators
 # * Printing
 ### TODO
-# * Filter units if put to zero-order
 # * `to` function for `Composite`
 # * Unit system based `to` method
 # * Full type coverage in `Composite` string parsing
 # * Add all units
 # * Parse CODATA
 # * Array operators
-# * Compose units to derived unit forms
+# * Compose units to a set of preferred unit forms
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
@@ -433,6 +432,7 @@ promote_rule(::Type{UnitDef}, ::Type{Quantity}) = Quantity
 promote_rule(::Type{UnitDef}, ::Type{Composite}) = Composite
 promote_rule(::Type{Quantity}, ::Type{Composite}) = Composite
 
+copy(q::Quantity) = Quantity(q.unit, copy(q.ord))
 copy(c::Composite) = Composite(copy(c.mag), copy(c.quants))
 
 get_dim(u::UnitDef) = u.dim
@@ -492,12 +492,12 @@ function decompose(c::Composite; usys::Dict=si)
     mag = c.mag
     new_quants = Quantity[]
     for base in bases
-        sys_unit = usys[base]
+        usys_pref = usys[base]
         base_quants = filter(q -> q.base == base, c.quants)
         mag *= prod([q.unit.ref^q.ord for q in base_quants])
         ord = sum([q.ord for q in base_quants])
         if ord != 0
-            push!(new_quants, Quantity(sys_unit, ord))
+            push!(new_quants, Quantity(usys_pref, ord))
         end
     end
     Composite(mag, new_quants)
@@ -561,7 +561,8 @@ function *(x::Composite, y::Composite)
         yq = pop!(y.quants)
         for ii=[1:xlen]
             if x.quants[ii].unit == yq.unit
-                insert!(x.quants, ii, Quantity(xq.unit, xq.ord + yq.ord))
+                xq = x.quants[ii]
+                x.quants[ii] = Quantity(xq.unit, xq.ord + yq.ord)
                 break
             else
                 push!(x.quants, yq)
