@@ -8,7 +8,6 @@ module Units
 # * Operators
 # * Printing
 ### TODO
-# * `to` function for `Composite`
 # * Unit system based `to` method
 # * Full type coverage in `Composite` string parsing
 # * Add all units
@@ -18,6 +17,7 @@ module Units
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
+import Base: zero
 import Base: show, showcompact, copy
 import Base: convert, promote_rule, promote
 
@@ -471,16 +471,15 @@ end
 check_compatible(x::Composite, y::Composite) = check_dim(x, y)
 
 # Unit conversion from `x` to unit `y` for units of compatible type.
-function to(x::Quantity, y::Quantity)
-    check_compatible(x, y)
-    Composite((y.unit.ref / x.unit.ref)^y.ord, [Quantity(y.unit, y.ord)])
-end
 function to(x::Composite, y::Composite)
     check_compatible(x, y)
-    # FIXME
     xs = sys_decompose(x)
     ys = sys_decompose(y)
     Composite(xs.mag / ys.mag, y.quants)
+end
+function to(x::UnitContainer, y::UnitContainer)
+    x, y, _ = promote(x, y, Composite(meter))
+    to(promote(x, y)...)
 end
 
 # Decompose a composite quantity to the lowest dimensions
@@ -524,6 +523,17 @@ function sys_decompose(c::Composite; usys::Dict=si)
 end
 
 
+# Composte a composite quantity to a set of preferred derived
+# and canonical units of the unit system.
+function compose(c::Composite; usys::Dict=si)
+    # FIXME
+    # Treat as an eigenvalue problem using the dimensions,
+    # with the basis vectors being first the derived units.
+    # Then, look at the "left-over" dimensional values,
+    # and fill those in with the concrete base units.
+end
+
+
 ##############################################################################
 # Operators
 ##############################################################################
@@ -564,9 +574,11 @@ function *(x::Composite, y::Composite)
                 break
             else
                 push!(x.quants, yq)
+                break
             end
         end
     end
+    x.quants = filter(q -> q.ord != 0, x.quants)
     Composite(mag, x.quants)
 end
 
@@ -586,7 +598,7 @@ end
 # Binary exponentiation operator.
 # Add `Integer` method to avoid method ambiguity with ^(::Any, ::Integer)
 ^(x::UnitDef, y::Integer) = x^Rational(y)
-^(x::UnitDef, y::Number) = Composite(1, [Quantity(x, y)])
+^(x::UnitDef, y::Number) = Composite(one(y), [Quantity(x, y)])
 ^(x::Quantity, y::Integer) = x^Rational(y)
 ^(x::Quantity, y::Number) = Quantity(x.unit, x.ord * y)
 ^(x::Composite, y::Integer) = x^Rational(y)
@@ -630,6 +642,8 @@ promote_rule{T<:Number}(::Type{Dimension}, ::Type{T}) = Dimension
 ^(x::Dimension, y::Number) = Dimension(x.data .^ y)
 ==(x::Dimension, y::Dimension) = all(x.data .== y.data)
 !=(x::Dimension, y::Dimension) = any(x.data .!= y.data)
+
+zero(::Dimension) = dimensionless
 
 NumberOrDim = Union(Dimension, Number)
 +(x::NumberOrDim, y::NumberOrDim) = +(promote(x, y)...)
