@@ -2,8 +2,9 @@ module Units
 ### Sections
 # * Container Types
 # * Exceptions
-# * Unit Abstracts
+# * Unit Definitions
 # * Prefixes
+# * Unit Systems
 # * Conversion
 # * Operators
 # * Printing
@@ -109,7 +110,7 @@ end
 
 
 ##############################################################################
-# Unit abstracts
+# Unit Definitions
 ##############################################################################
 
 abstract Unit
@@ -550,6 +551,28 @@ end
 @add_prefix(Kilo, Gram)
 @add_prefix(Femto, Parsec)
 
+
+# Append prefixes to all concrete units.
+# FIXME Meta-meta programming, ugly, but until a better way
+# is figured out, necessary, because abstracts, exports, and evals
+# have to be in the module's top level.
+function gen_prefixes()
+    open("PrefixUnits.jl", "w") do filen
+        write(filen, "module PrefixUnits\n\n")
+        write(filen, "import Units: @add_prefix\n\n")
+        for prefix=subtypes(Prefix), base=ConcreteUnit.types
+            base = base.parameters[1]
+            write(filen, "@add_prefix($prefix, $base)\n")
+        end
+        write(filen, "\nend\n")
+    end
+end
+
+
+##############################################################################
+# Unit Systems
+##############################################################################
+
 SiUnit = [Meter, KiloGram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
@@ -605,23 +628,6 @@ cgs = {
     # Derived Units
     Wavenumber => kayser,
 }
-
-
-# Append prefixes to all concrete units.
-# FIXME Meta-meta programming, ugly, but until a better way
-# is figured out, necessary, because abstracts, exports, and evals
-# have to be in the module's top level.
-function gen_prefixes()
-    open("PrefixUnits.jl", "w") do filen
-        write(filen, "module PrefixUnits\n\n")
-        write(filen, "import Units: @add_prefix\n\n")
-        for prefix=subtypes(Prefix), base=ConcreteUnit.types
-            base = base.parameters[1]
-            write(filen, "@add_prefix($prefix, $base)\n")
-        end
-        write(filen, "\nend\n")
-    end
-end
 
 
 ##############################################################################
