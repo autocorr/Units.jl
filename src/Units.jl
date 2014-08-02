@@ -118,115 +118,207 @@ abstract Unit
 abstract DerivedUnit <: Unit
 
 # Canonical units
+# Length
 abstract Length <: Unit
 abstract Meter <: Length
 abstract AU <: Length
 abstract Parsec <: Length
+const l_dim = Dimension(1,0,0,0,0,0,0)
+const meter = UnitDef(Meter, "m", 1, l_dim)
+const au = UnitDef(AU, "au", 2, l_dim)
+const parsec = UnitDef(Parsec, "pc", 3, l_dim)
 
+# Mass
 abstract Mass <: Unit
 abstract Gram <: Mass
 abstract SolarMass <: Mass
+const m_dim = Dimension(0,1,0,0,0,0,0)
+const gram = UnitDef(Gram, "g", 1e-3, m_dim)
+const solarmass = UnitDef(SolarMass, "Msun", 2, m_dim)
 
+# Time
 abstract Time <: Unit
 abstract Second <: Time
 abstract Year <: Time
+const t_dim = Dimension(0,0,1,0,0,0,0)
+const second = UnitDef(Second, "s", 1, t_dim)
+const year = UnitDef(Year, "yr", 2, t_dim)
 
-abstract Temperature <: Unit
-abstract Kelvin <: Temperature
-
+# ElectricCurrent
 abstract ElectricCurrent <: Unit
 abstract Ampere <: ElectricCurrent
 abstract StatAmpere <: ElectricCurrent
+const i_dim = Dimension(0,0,0,1,0,0,0)
+const ampere = UnitDef(Ampere, "A", 1, i_dim)
+const statampere = UnitDef(StatAmpere, "statA", 1, i_dim)
 
+# Temperature
+abstract Temperature <: Unit
+abstract Kelvin <: Temperature
+const θ_dim = Dimension(0,0,0,0,1,0,0)
+const kelvin = UnitDef(Kelvin, "K", 1, θ_dim)
+
+# AmountOfSubstance
 abstract AmountOfSubstance <: Unit
 abstract Mole <: AmountOfSubstance
+const n_dim = Dimension(0,0,0,0,0,1,0)
+const mole = UnitDef(Mole, "mol", 1, n_dim)
 
+# LuminousIntensity
 abstract LuminousIntensity <: Unit
 abstract Candela <: LuminousIntensity
+const j_dim = Dimension(0,0,0,0,0,0,1)
+const candela = UnitDef(Candela, "cd", 1, j_dim)
 
-# Derived units
+# Derived Units
+# Dimensionless
 abstract Angle <: DerivedUnit
 abstract Radian <: Angle
-abstract ArcSecond <: Angle
-abstract ArcMinute <: Angle
-abstract ArcHour <: Angle
 abstract Degree <: Angle
+abstract ArcHour <: Angle
+abstract ArcMinute <: Angle
+abstract ArcSecond <: Angle
+const radian = UnitDef(Radian, "rad", 1, dimensionless)
+const degree = UnitDef(Degree, "deg", 2π / 360, dimensionless)
+const archour = UnitDef(ArcHour, "archr", 24 * 2π / 360, dimensionless)
+const arcminute = UnitDef(ArcMinute, "arcmin", 2π / (360 * 60), dimensionless)
+const arcsecond = UnitDef(ArcSecond, "arcsec", 2π / (360 * 60 * 60), dimensionless)
 
 abstract SolidAngle <: DerivedUnit
 abstract Steradian <: SolidAngle
+const steradian = UnitDef(Steradian, "ster", 1, dimensionless)
 
+# Frequency
 abstract Frequency <: DerivedUnit
 abstract Hertz <: Frequency
+const frequency_dim = Dimension(0,0,-1,0,0,0,0)
+const hertz = UnitDef(Hertz, "Hz", 1, frequency_dim)
 
+# Acceleration
 abstract Acceleration <: DerivedUnit
 abstract Gal <: Acceleration
+const acceleration_dim = Dimension(1,0,2,0,0,0,0)
+const gal = UnitDef(Gal, "gal", 1e-2, acceleration_dim)
 
+# Force
 abstract Force <: DerivedUnit
 abstract Newton <: Force
 abstract Dyne <: Force
+const force_dim = Dimension(1,1,-2,0,0,0,0)
+const newton = Unitdef(Newton, "N", 1, force_dim)
+const dyne = UnitDef(Dyne, "dyn", 1e-5, force_dim)
 
+# Pressure
 abstract Pressure <: DerivedUnit
 abstract Pascal <: Pressure
+abstract Bar <: Pressure
 abstract Barye <: Pressure
+abstract TechnicalAtmosphere <: Pressure
+abstract Atmosphere <: Pressure
+abstract Torr <: Pressure
+abstract Psi <: Pressure
+const pressure_dim = Dimension(-1,1,-2,0,0,0,0)
+const pascal = UnitDef(Pascal, "Pa", 1, pressure_dim)
+const bar = UnitDef(Bar, "bar", 1e5, pressure_dim)
+const barye = UnitDef(Barye, "Ba", 1e-1, pressure_dim)
+const technicalatmosphere = UnitDef(TechnicalAtmosphere, "at", 0.980665e5, pressure_dim)
+const atmosphere = UnitDef(Atmosphere, "atm", 1.01325e5, pressure_dim)
+const torr = UnitDef(Torr, "torr", 133.3224, pressure_dim)
+const psi = UnitDef(Psi, "psi", 6.8948e3, pressure_dim)
 
+# Energy
 abstract Energy <: DerivedUnit
 abstract Joule <: Energy
 abstract Erg <: Energy
+abstract ElectronVolt <: Energy
+abstract Calorie <: Energy
+abstract Btu <: Energy
+const energy_dim = Dimension(2,1,-2,0,0,0,0)
+const joule = UnitDef(Joule, "J", 1, energy_dim)
+const erg = UnitDef(Erg, "erg", 1e-7, energy_dim)
+const electronvolt = UnitDef(ElectronVolt, "eV", 1.602176565e-19, energy_dim)
+const calorie = UnitDef(Calorie, "cal", 4.184, energy_dim)
+const btu = UnitDef(Btu, "btu", 1055.056, energy_dim)  # ISO 31-4
 
+# Power
 abstract Power <: DerivedUnit
 abstract Watt <: Power
+abstract SolarLuminosity <: Power
+const power_dim = Dimension(2,1,-3,0,0,0,0)
+const watt = UnitDef(Watt, "W", 1, power_dim)
+const solarluminosity = UnitDef(SolarLuminosity, "Lsol", 3.846e26, power_dim)
 
+# Electric charge
 abstract ElectricCharge <: DerivedUnit
 abstract Coulomb <: ElectricCharge
+const charge_dim = Dimension(0,0,1,1,0,0,0)
+const coulomb = UnitDef(Coulomb, "C", 1, charge_dim)
 
+# Voltage
 abstract Voltage <: DerivedUnit
 abstract Volt <: Voltage
 
+# Electric capacitance
 abstract ElectricCapacitance <: DerivedUnit
 abstract Farad <: ElectricCapacitance
 
+# Electric resistance
 abstract ElectricResistance <: DerivedUnit
 abstract Ohm <: ElectricResistance
 
+# Electric conductance
 abstract ElectricConductance <: DerivedUnit
 abstract Siemens <: ElectricConductance
 
+# Magnetic flux
 abstract MagneticFlux <: DerivedUnit
 abstract Weber <: MagneticFlux
 
+# Magnetic flux density
 abstract MagneticFluxDensity <: DerivedUnit
 abstract Tesla <: MagneticFluxDensity
 
+# Inductance
 abstract Inductance <: DerivedUnit
 abstract Henry <: Inductance
 
+# Luminous flux
 abstract LuminousFlux <: DerivedUnit
 abstract Lumen <: LuminousFlux
 
+# Illuminance
 abstract Illuminance <: DerivedUnit
 abstract Lux <: Illuminance
 
+# Radioactivity
 abstract Radioactivity <: DerivedUnit
 abstract Becquerel <: Radioactivity
 
+# Absorbed dose
 abstract AbsorbedDose <: DerivedUnit
 abstract Gray <: AbsorbedDose
 
+# Equivalent dose
 abstract EquivalentDose <: DerivedUnit
 abstract Sievert <: EquivalentDose
 
+# Catalytic activity
 abstract CatalyticActivity <: DerivedUnit
 abstract Katal <: CatalyticActivity
 
+# Dynamic viscosity
 abstract DynamicViscosity <: DerivedUnit
 abstract Poise <: DynamicViscosity
 
+# Kinematic viscosity
 abstract KinematicViscosity <: DerivedUnit
 abstract Stokes <: KinematicViscosity
 
+# Wavenumber
 abstract Wavenumber <: DerivedUnit
 abstract Kayser <: Wavenumber
 
+# Aliases
 typealias Weight Force
 typealias Stress Pressure
 typealias Work Energy
@@ -325,34 +417,6 @@ prefix_short_forms = [
     Zetta => "Z",
     Yotta => "Y",
 ]
-
-
-# Length
-const l_dim = Dimension(1,0,0,0,0,0,0)
-const meter = UnitDef(Meter, "m", 1, l_dim)
-const au = UnitDef(AU, "au", 2, l_dim)
-const parsec = UnitDef(Parsec, "pc", 3, l_dim)
-# Mass
-const m_dim = Dimension(0,1,0,0,0,0,0)
-const gram = UnitDef(Gram, "g", 1e-3, m_dim)
-const solarmass = UnitDef(SolarMass, "Msun", 2, m_dim)
-# Time
-const t_dim = Dimension(0,0,1,0,0,0,0)
-const second = UnitDef(Second, "s", 1, t_dim)
-const year = UnitDef(Year, "yr", 2, t_dim)
-# ElectricCurrent
-const i_dim = Dimension(0,0,0,1,0,0,0)
-const ampere = UnitDef(Ampere, "A", 1, i_dim)
-const statampere = UnitDef(StatAmpere, "statA", 1, i_dim)
-# Temperature
-const θ_dim = Dimension(0,0,0,0,1,0,0)
-const kelvin = UnitDef(Kelvin, "K", 1, θ_dim)
-# AmountOfSubstance
-const n_dim = Dimension(0,0,0,0,0,1,0)
-const mole = UnitDef(Mole, "mol", 1, n_dim)
-# LuminousIntensity
-const j_dim = Dimension(0,0,0,0,0,0,1)
-const candela = UnitDef(Candela, "cd", 1, j_dim)
 
 
 macro add_prefix(prefix, base)
