@@ -8,12 +8,12 @@ module Units
 # * Operators
 # * Printing
 ### TODO
-# * Unit system based `to` method
+# * Compose units to a set of preferred unit forms
+# * Array operators
 # * Full type coverage in `Composite` string parsing
 # * Add all units
 # * Parse CODATA
-# * Array operators
-# * Compose units to a set of preferred unit forms
+# * Unit system based `to` method
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
