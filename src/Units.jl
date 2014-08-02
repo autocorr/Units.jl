@@ -121,28 +121,34 @@ abstract DerivedUnit <: Unit
 # Length
 abstract Length <: Unit
 abstract Meter <: Length
-abstract AU <: Length
+abstract AstronomicalUnit <: Length
 abstract Parsec <: Length
+abstract Angstrom <: Length
 const l_dim = Dimension(1,0,0,0,0,0,0)
 const meter = UnitDef(Meter, "m", 1, l_dim)
-const au = UnitDef(AU, "au", 2, l_dim)
-const parsec = UnitDef(Parsec, "pc", 3, l_dim)
+const astronomicalunit = UnitDef(AstronomicalUnit, "AU", 1.495978707e11, l_dim)
+const parsec = UnitDef(Parsec, "pc", 3.0856776e16, l_dim)
+const angstrom = UnitDef(Angstrom, "Å", 1e-10, l_dim)
 
 # Mass
 abstract Mass <: Unit
 abstract Gram <: Mass
-abstract SolarMass <: Mass
 const m_dim = Dimension(0,1,0,0,0,0,0)
 const gram = UnitDef(Gram, "g", 1e-3, m_dim)
-const solarmass = UnitDef(SolarMass, "Msun", 2, m_dim)
 
 # Time
 abstract Time <: Unit
 abstract Second <: Time
+abstract Minute <: Time
+abstract Hour <: Time
+abstract Day <: Time
 abstract Year <: Time
 const t_dim = Dimension(0,0,1,0,0,0,0)
 const second = UnitDef(Second, "s", 1, t_dim)
-const year = UnitDef(Year, "yr", 2, t_dim)
+const minute = UnitDef(Minute, "min", 60, t_dim)
+const hour = UnitDef(Hour, "hr", 3600, t_dim)
+const day = UnitDef(Day, "day", 86400, t_dim)
+const year = UnitDef(Year, "yr", 3.15576e7, t_dim)
 
 # ElectricCurrent
 abstract ElectricCurrent <: Unit
@@ -205,7 +211,7 @@ abstract Force <: DerivedUnit
 abstract Newton <: Force
 abstract Dyne <: Force
 const force_dim = Dimension(1,1,-2,0,0,0,0)
-const newton = Unitdef(Newton, "N", 1, force_dim)
+const newton = UnitDef(Newton, "N", 1, force_dim)
 const dyne = UnitDef(Dyne, "dyn", 1e-5, force_dim)
 
 # Pressure
