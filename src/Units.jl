@@ -9,10 +9,12 @@ module Units
 # * Operators
 # * Printing
 ### TODO
+# * Add CGS units to unit dictionary
 # * Compose units to a set of preferred unit forms with `compose` function
+# * Unit system based `to` method
+# * Comparison operators, other non-array operators
 # * Array operators
 # * Parse CODATA for physical constants
-# * Unit system based `to` method
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
@@ -442,7 +444,7 @@ typealias Reactance Resistance
 typealias MagneticFieldStrength MagneticFluxDensity
 
 
-# TODO
+# FIXME
 # in order for these to work with user defined types, they will have to do:
 #     > BaseUnit = Union(BaseUnit, Type{Foo})
 BaseUnit = subtypes(Unit) |>
@@ -687,6 +689,10 @@ function to(x::Composite, y::Composite)
     ys = sys_decompose(y)
     Composite(xs.mag / ys.mag, y.quants)
 end
+function to(x::Composite, s::String)
+    y = Composite(s)
+    to(x, y)
+end
 function to(x::UnitContainer, y::UnitContainer)
     x, y, _ = promote(x, y, Composite(meter))
     to(promote(x, y)...)
@@ -808,7 +814,7 @@ end
 # Binary exponentiation operator.
 # Add `Integer` method to avoid method ambiguity with ^(::Any, ::Integer)
 ^(x::UnitDef, y::Integer) = x^Rational(y)
-^(x::UnitDef, y::Number) = Composite(one(y), [Quantity(x, y)])
+^(x::UnitDef, y::Number) = Composite(1, [Quantity(x, y)])
 ^(x::Quantity, y::Integer) = x^Rational(y)
 ^(x::Quantity, y::Number) = Quantity(x.unit, x.ord * y)
 ^(x::Composite, y::Integer) = x^Rational(y)
