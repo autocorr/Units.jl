@@ -801,7 +801,7 @@ function /(x::Number, y::Composite)
 end
 function /(x::Composite, y::Composite)
     y = copy(y)
-    y = Composite(y.mag, [Quantity(q.unit, -q.ord) for q in y.quants])
+    y = Composite(inv(y.mag), [Quantity(q.unit, -q.ord) for q in y.quants])
     x * y
 end
 
