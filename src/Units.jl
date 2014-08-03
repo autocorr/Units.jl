@@ -9,12 +9,12 @@ module Units
 # * Operators
 # * Printing
 ### TODO
-# * Add CGS units to unit dictionary
 # * Compose units to a set of preferred unit forms with `compose` function
 # * Unit system based `to` method
-# * Comparison operators, other non-array operators
 # * Array operators
+# * Support all mathematical functions in Base on `Composite`
 # * Parse CODATA for physical constants
+# * Complete treatment of CGS electromagnetic systems
 ###
 
 import Base: +, -, *, /, ^, ==, >, <, <=, >=
@@ -53,8 +53,7 @@ immutable UnitDef
     ref::Number
     dim::Dimension
 
-    function UnitDef(utype::Type, abbrev::String,
-                     ref::Number, dim::Dimension)
+    function UnitDef(utype::Type, abbrev::String, ref::Number, dim::Dimension)
         new(utype, string(utype), abbrev, ref, dim)
     end
 end
@@ -114,6 +113,9 @@ end
 ##############################################################################
 # Unit Definitions
 ##############################################################################
+
+# Speed of light (in a vacuum) factor, m / s
+const _c = 299792458.0
 
 abstract Unit
 abstract DerivedUnit <: Unit
@@ -192,7 +194,7 @@ abstract ArcHour <: Angle
 abstract ArcMinute <: Angle
 abstract ArcSecond <: Angle
 const radian = UnitDef(Radian, "rad", 1, dimensionless)
-const degree = UnitDef(Degree, "deg", 2π / 360, dimensionless)
+const degree = UnitDef(Degree, "°", 2π / 360, dimensionless)
 const archour = UnitDef(ArcHour, "archr", 24 * 2π / 360, dimensionless)
 const arcminute = UnitDef(ArcMinute, "arcmin", 2π / (360 * 60), dimensionless)
 const arcsecond = UnitDef(ArcSecond, "arcsec", 2π / (360 * 60 * 60), dimensionless)
@@ -200,7 +202,7 @@ const arcsecond = UnitDef(ArcSecond, "arcsec", 2π / (360 * 60 * 60), dimensionl
 # Solid Angle
 abstract SolidAngle <: DerivedUnit
 abstract Steradian <: SolidAngle
-const steradian = UnitDef(Steradian, "ster", 1, dimensionless)
+const steradian = UnitDef(Steradian, "sr", 1, dimensionless)
 
 # Area
 abstract Area <: DerivedUnit
@@ -294,7 +296,7 @@ abstract StatCoulomb <: Charge
 const charge_dim = Dimension(0,0,1,1,0,0,0)
 const coulomb = UnitDef(Coulomb, "C", 1, charge_dim)
 const abcoulomb = UnitDef(AbCoulomb, "abC", 10, charge_dim)
-const statcoulomb = UnitDef(StatCoulomb, "statC", 3.335641e-10, charge_dim)
+const statcoulomb = UnitDef(StatCoulomb, "statC", 0.1 / _c, charge_dim)
 const franklin = statcoulomb
 typealias Franklin StatCoulomb
 
@@ -306,7 +308,7 @@ abstract StatVolt <: Voltage
 const voltage_dim = Dimension(2,1,-3,-1,0,0,0)
 const volt = UnitDef(Volt, "V", 1, voltage_dim)
 const abvolt = UnitDef(AbVolt, "abV", 1e-8, voltage_dim)
-const statvolt = UnitDef(StatVolt, "statV", 2.99792458e2, voltage_dim)
+const statvolt = UnitDef(StatVolt, "statV", 1e-6 * _c, voltage_dim)
 
 # Electric capacitance
 abstract Capacitance <: DerivedUnit
@@ -316,7 +318,7 @@ abstract StatFarad <: Capacitance
 const capacitance_dim = Dimension(-2,-1,4,2,0,0,0)
 const farad = UnitDef(Farad, "F", 1, capacitance_dim)
 const abfarad = UnitDef(AbFarad, "abF", 1e9, capacitance_dim)
-const statfarad = UnitDef(StatFarad, "statF", 1.112650e-12, capacitance_dim)
+const statfarad = UnitDef(StatFarad, "statF", 1e5 * _c^-2, capacitance_dim)
 
 # Electric resistance
 abstract Resistance <: DerivedUnit
@@ -326,7 +328,7 @@ abstract StatOhm <: Resistance
 const resistance_dim = Dimension(2,1,-3,-2,0,0,0)
 const ohm = UnitDef(Ohm, "Ω", 1, resistance_dim)
 const abohm = UnitDef(AbOhm, "abΩ", 1e-9, resistance_dim)
-const statohm = UnitDef(StatOhm, "statΩ", 8.987552e11, resistance_dim)
+const statohm = UnitDef(StatOhm, "statΩ", 1e-5 * _c^2, resistance_dim)
 
 # Electric conductance
 abstract Conductance <: DerivedUnit
@@ -338,7 +340,13 @@ const conductance_dim = Dimension(-2,-1,3,2,0,0,0)
 const siemens = UnitDef(Siemens, "S", 1, conductance_dim)
 const mho = UnitDef(Mho, "℧", 0.99951, conductance_dim)
 const abmho = UnitDef(AbMho, "ab℧", 1e9, conductance_dim)
-const statmho = UnitDef(StatMho, "stat℧", 1.112650e-12, conductance_dim)
+const statmho = UnitDef(StatMho, "stat℧", 1e5 / _c^2, conductance_dim)
+
+# Electric dipole moment
+abstract ElectricDipoleMoment <: DerivedUnit
+abstract Debye <: ElectricDipoleMoment
+const electricdipolemoment_dim = Dimension(1,0,1,1,0,0,0)
+const debye = UnitDef(Debye, "D", 1e-21 / _c, electricdipolemoment_dim)
 
 # Magnetic flux
 abstract MagneticFlux <: DerivedUnit
@@ -354,7 +362,7 @@ abstract Tesla <: MagneticFluxDensity
 abstract Gauss <: MagneticFluxDensity
 const magneticfluxdensity_dim = Dimension(0,1,-2,-1,0,0,0)
 const tesla = UnitDef(Tesla, "T", 1, magneticfluxdensity_dim)
-const gauass = UnitDef(Gauss, "G", 1e-4, magneticfluxdensity_dim)
+const gauss = UnitDef(Gauss, "G", 1e-4, magneticfluxdensity_dim)
 
 # Inductance
 abstract Inductance <: DerivedUnit
@@ -364,7 +372,7 @@ abstract StatHenry <: Inductance
 const inductance_dim = Dimension(2,1,-2,-2,0,0,0)
 const henry = UnitDef(Henry, "H", 1, inductance_dim)
 const abhenry = UnitDef(AbHenry, "abH", 1e-9, inductance_dim)
-const stathenry = UnitDef(StatHenry, "statH", 8.987552e11, inductance_dim)
+const stathenry = UnitDef(StatHenry, "statH", 1e-5 * _c^2, inductance_dim)
 
 # Luminous flux
 abstract LuminousFlux <: DerivedUnit
@@ -538,7 +546,6 @@ macro add_prefix(prefix, base)
     pinst = symbol(lowercase(string(prefix, base)))
     binst = symbol(lowercase(string(base)))
     pcons = symbol(lowercase(string(prefix)))
-    #return quote
     @eval begin
         abstract $pbase <: super($base)
         const $pinst = UnitDef(
@@ -589,6 +596,7 @@ si = {
     LuminousIntensity => candela,
     # Derived units
     Angle => radian,
+    SolidAngle => steradian,
     Area => hectare,
     Volume => litre,
     Frequency => hertz,
@@ -610,11 +618,8 @@ si = {
     AbsorbedDose => gray,
     EquivalentDose => sievert,
     CatalyticActivity => katal,
-    DynamicViscosity => poise,
-    KinematicViscosity => stokes,
 }
 
-# FIXME add all units for system
 CgsUnit = [CentiMeter, Gram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
@@ -628,6 +633,26 @@ cgs = {
     AmountOfSubstance => mole,
     LuminousIntensity => candela,
     # Derived Units
+    Angle => radian,
+    SolidAngle => steradian,
+    Frequency => hertz,
+    Acceleration => gal,
+    Force => dyne,
+    Pressure => barye,
+    Energy => erg,
+    Charge => statcoulomb,
+    Voltage => statvolt,
+    Capacitance => statfarad,
+    Resistance => statohm,
+    Conductance => statmho,
+    MagneticFlux => maxwell,
+    MagneticFluxDensity => gauss,
+    Inductance => stathenry,
+    LuminousFlux => lumen,
+    Radioactivity => becquerel,
+    CatalyticActivity => katal,
+    DynamicViscosity => poise,
+    KinematicViscosity => stokes,
     Wavenumber => kayser,
 }
 
@@ -754,6 +779,10 @@ end
 # Operators
 ##############################################################################
 
+# Unary addition operator
++(x::UnitDef) = x
++(x::Composite) = x
+
 # Binary addition operator. Returned in units of the first argument.
 function +(x::Composite, y::Composite)
     check_dim(x, y)
@@ -811,6 +840,13 @@ function /(x::Composite, y::Composite)
     x * y
 end
 
+# Binary inverse division operator
+\(x::UnitDef, y::Number) = y / x
+\(x::Number, y::UnitDef) = y / x
+\(x::Composite, y::Number) = y / x
+\(x::Number, y::Composite) =  y / x
+\(x::Composite, y::Composite) =  y / x
+
 # Binary exponentiation operator.
 # Add `Integer` method to avoid method ambiguity with ^(::Any, ::Integer)
 ^(x::UnitDef, y::Integer) = x^Rational(y)
@@ -825,23 +861,27 @@ function ^(x::Composite, y::Number)
     Composite(mag, new_quants)
 end
 
+# Comparison operators
+for op=(:==, :!=, :<, :<=, :>, :>=)
+    @eval begin
+        function ($op)(x::Composite, y::Composite)
+            check_dim(x, y)
+            x = sys_decompose(x)  # defaults to SI
+            y = sys_decompose(y)
+            ($op)(x.mag, y.mag)
+        end
+    end
+end
 
-# Catch-all, force conversion to Composite
-function +(x::UnitContainer, y::UnitContainer)
-    x, y, _ = promote(x, y, Composite(meter))
-    +(promote(x, y)...)
-end
-function -(x::UnitContainer, y::UnitContainer)
-    x, y, _ = promote(x, y, Composite(meter))
-    -(promote(x, y)...)
-end
-function *(x::UnitContainer, y::UnitContainer)
-    x, y, _ = promote(x, y, Composite(meter))
-    *(promote(x, y)...)
-end
-function /(x::UnitContainer, y::UnitContainer)
-    x, y, _ = promote(x, y, Composite(meter))
-    /(promote(x, y)...)
+
+# Catch-all operators to force conversion to Composite
+for op=(:+, :-, :*, :/, :\, :==, :!=, :<, :<=, :>, :>=)
+    @eval begin
+        function ($op)(x::UnitContainer, y::UnitContainer)
+            x, y, _ = promote(x, y, Composite(meter))
+            ($op)(promote(x, y)...)
+        end
+    end
 end
 
 
@@ -850,12 +890,14 @@ convert{T<:Number}(::Type{Dimension}, x::T) = Dimension((dimensionless.data .+ x
 promote_rule{T<:Number}(::Type{Dimension}, ::Type{T}) = Dimension
 
 -(x::Dimension) = Dimension((-x.data)...)
+^(x::Dimension, y::Integer) = Dimension(x.data .^ y)
+^(x::Dimension, y::Number) = Dimension(x.data .^ y)
+
 +(x::Dimension, y::Dimension) = Dimension((x.data .+ y.data)...)
 -(x::Dimension, y::Dimension) = Dimension((x.data .- y.data)...)
 *(x::Dimension, y::Dimension) = Dimension((x.data .* y.data)...)
 /(x::Dimension, y::Dimension) = Dimension((x.data ./ y.data)...)
-^(x::Dimension, y::Integer) = Dimension(x.data .^ y)
-^(x::Dimension, y::Number) = Dimension(x.data .^ y)
+
 ==(x::Dimension, y::Dimension) = all(x.data .== y.data)
 !=(x::Dimension, y::Dimension) = any(x.data .!= y.data)
 
