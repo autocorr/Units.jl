@@ -352,7 +352,7 @@ abstract Tesla <: MagneticFluxDensity
 abstract Gauss <: MagneticFluxDensity
 const magneticfluxdensity_dim = Dimension(0,1,-2,-1,0,0,0)
 const tesla = UnitDef(Tesla, "T", 1, magneticfluxdensity_dim)
-const gauass = UnitDef(Gauss "G", 1e-4, magneticfluxdensity_dim)
+const gauass = UnitDef(Gauss, "G", 1e-4, magneticfluxdensity_dim)
 
 # Inductance
 abstract Inductance <: DerivedUnit
@@ -381,8 +381,8 @@ abstract Radioactivity <: DerivedUnit
 abstract Becquerel <: Radioactivity
 abstract Curie <: Radioactivity
 const radioactivity_dim = Dimension(0,0,-1,0,0,0,0)
-const bacquerel = UnitDef(Becquerel, "Bq", 1, radioactivity_dim)
-const curie = UnitDef(Curie, "Ci", 3.70e10)
+const becquerel = UnitDef(Becquerel, "Bq", 1, radioactivity_dim)
+const curie = UnitDef(Curie, "Ci", 3.70e10, radioactivity_dim)
 
 # Absorbed dose
 abstract AbsorbedDose <: DerivedUnit
@@ -437,8 +437,8 @@ typealias Work Energy
 typealias Heat Energy
 typealias RadiateFlux Power
 typealias EMF Voltage
-typealias Impedance ElectricResistance
-typealias Reactance ElectricResistance
+typealias Impedance Resistance
+typealias Reactance Resistance
 typealias MagneticFieldStrength MagneticFluxDensity
 
 
@@ -600,7 +600,7 @@ si = {
     Resistance => ohm,
     Conductance => siemens,
     MagneticFlux => weber,
-    MagneticFluxDensity => tesla
+    MagneticFluxDensity => tesla,
     Inductance => henry,
     LuminousFlux => lumen,
     Illuminance => lux,
