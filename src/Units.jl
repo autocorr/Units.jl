@@ -13,11 +13,14 @@ module Units
 # * Unit system based `to` method
 # * Array operators
 # * Support all mathematical functions in Base on `Composite`
+# * Add all prefixes
 # * Parse CODATA for physical constants
-# * Complete treatment of CGS electromagnetic systems
+# * Complete treatment of CGS electromagnetic systems, emu/esu/gauss
+# * Add full test coverage
+# * Add full documentation
 ###
 
-import Base: +, -, *, /, ^, ==, >, <, <=, >=
+import Base: +, -, *, /, ^, ==, !=, >, <, <=, >=
 import Base: zero
 import Base: show, showcompact, copy
 import Base: convert, promote_rule, promote
