@@ -20,7 +20,7 @@ module Units
 # * Add full documentation
 ###
 
-import Base: +, -, *, /, ^, ==, !=, >, <, <=, >=
+import Base: +, -, *, /, \, ^, ==, !=, >, <, <=, >=
 import Base: zero
 import Base: show, showcompact, copy
 import Base: convert, promote_rule, promote
@@ -865,7 +865,7 @@ function ^(x::Composite, y::Number)
 end
 
 # Comparison operators
-for op=(:==, :!=, :<, :<=, :>, :>=)
+for op=(:(==), :!=, :<, :<=, :>, :>=)
     @eval begin
         function ($op)(x::Composite, y::Composite)
             check_dim(x, y)
@@ -878,7 +878,7 @@ end
 
 
 # Catch-all operators to force conversion to Composite
-for op=(:+, :-, :*, :/, :\, :==, :!=, :<, :<=, :>, :>=)
+for op=(:+, :-, :*, :/, :\, :<, :<=, :>, :>=)
     @eval begin
         function ($op)(x::UnitContainer, y::UnitContainer)
             x, y, _ = promote(x, y, Composite(meter))
