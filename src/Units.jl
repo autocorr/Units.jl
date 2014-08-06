@@ -10,11 +10,11 @@ module Units
 # * Printing
 ### TODO
 # * Compose units to a set of preferred unit forms with `compose` function
-# * Unit system based `to` method
 # * Array operators
 # * Support all mathematical functions in Base on `Composite`
 # * Add all prefixes
 # * Parse CODATA for physical constants
+# * Unit system based `to` method
 # * Complete treatment of CGS electromagnetic systems, emu/esu/gauss
 # * Add full test coverage
 # * Add full documentation
@@ -770,6 +770,7 @@ end
 # Composte a composite quantity to a set of preferred derived
 # and canonical units of the unit system.
 function compose(c::Composite; usys::Dict=si)
+    dim = get_dim(c)
     # FIXME
     # Treat as an eigenvalue problem using the dimensions,
     # with the basis vectors being first the derived units.
