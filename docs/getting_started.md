@@ -52,3 +52,5 @@ section covers dimensions.
 Dimensions
 ----------
 
+    julia> c = Composite("2 * meter^(1//2) / second");
+    julia> sys_decompose(c)
