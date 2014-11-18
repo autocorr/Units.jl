@@ -1,4 +1,5 @@
 site_name: unitsjl
 pages:
 - [index.md, Home]
+- [getting_started.md, Getting Started]
 theme: readthedocs

@@ -520,7 +520,7 @@ const exa = 1e18
 const zetta = 1e21
 const yotta = 1e24
 
-prefix_short_forms = [
+prefix_short_forms = Dict(
     Yocto => "y",
     Zepto => "z",
     Atto => "a",
@@ -541,7 +541,7 @@ prefix_short_forms = [
     Exa => "E",
     Zetta => "Z",
     Yotta => "Y",
-]
+)
 
 
 macro add_prefix(prefix, base)
@@ -588,7 +588,7 @@ end
 SiUnit = [Meter, KiloGram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
-si = {
+si = Dict(
     # Base units
     Length => meter,
     Mass => kilogram,
@@ -621,12 +621,12 @@ si = {
     AbsorbedDose => gray,
     EquivalentDose => sievert,
     CatalyticActivity => katal,
-}
+)
 
 CgsUnit = [CentiMeter, Gram, Second] |>
     x -> [Type{T} for T in x] |>
     x -> Union(x...)
-cgs = {
+cgs = Dict(
     # Base units
     Length => centimeter,
     Mass => gram,
@@ -657,7 +657,7 @@ cgs = {
     DynamicViscosity => poise,
     KinematicViscosity => stokes,
     Wavenumber => kayser,
-}
+)
 
 
 ##############################################################################
@@ -918,7 +918,7 @@ NumberOrDim = Union(Dimension, Number)
 # Printing
 ##############################################################################
 
-const sup_vals = [
+const sup_vals = Dict(
     -1 => "⁻",
     0  => "⁰",
     1  => "¹",
@@ -930,9 +930,9 @@ const sup_vals = [
     7  => "⁷",
     8  => "⁸",
     9  => "⁹",
-]
+)
 
-const sub_vals = [
+const sub_vals = Dict(
     1 => "₁",
     2 => "₂",
     3 => "₃",
@@ -942,7 +942,7 @@ const sub_vals = [
     7 => "₇",
     8 => "₈",
     9 => "₉",
-]
+)
 
 function pretty_order(n::Rational)
     if n.num == 1 & n.den == 1
